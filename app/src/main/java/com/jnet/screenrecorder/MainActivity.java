@@ -256,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
             tvOverlayStatus.setTextColor(ContextCompat.getColor(this, bubbleRunning ? R.color.primary : R.color.green));
         } else {
             btnOverlay.setText(R.string.enable_overlay);
-            tvOverlayStatus.setText("Overlay: ✗ Not granted");
+            tvOverlayStatus.setText("Overlay: ✗ Not granted — tap to enable");
             tvOverlayStatus.setTextColor(ContextCompat.getColor(this, R.color.red));
         }
     }

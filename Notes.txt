@@ -76,6 +76,10 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.8 (2026-08-09)
+- **FIXED screenshot failing on Samsung S9**: the manifest declared BubbleService with foregroundServiceType="specialUse" only, so starting it with the mediaProjection type threw IllegalArgumentException ("foregroundServiceType 0x20 is not a subset of 0x40000000"). Changed BubbleService to foregroundServiceType="specialUse|mediaProjection" so the runtime mediaProjection type is a subset. Screenshots now work.
+- **Overlay status hint**: clearer "tap to enable" message when overlay permission is not granted (helps on GrapheneOS where SYSTEM_ALERT_WINDOW is stricter).
+
 ### v1.4.7 (2026-08-09)
 - **FIXED screenshot failing to save**: BubbleService now calls startForeground() with FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION before getMediaProjection() (Android 10+ requirement). Previously threw SecurityException "Media projections require a foreground service of type FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION".
 - **FIXED record bubble not stopping when already recording**: RecorderService.isRecording() checked the static sMediaProjection which was NEVER set during recording (only cleared to null), so it always returned false. Now sMediaProjection is synced to mMediaProjection when recording starts, so the stop button shows and clicking it stops the recording.
