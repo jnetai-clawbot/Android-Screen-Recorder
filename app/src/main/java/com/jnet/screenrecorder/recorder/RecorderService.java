@@ -138,6 +138,9 @@ public class RecorderService extends Service {
             Intent data = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ? intent.getParcelableExtra("data", Intent.class)
                     : intent.getParcelableExtra("data");
+            com.jnet.screenrecorder.ErrorLog.i("SRV start: extraCode=" + resultCode
+                    + " extraData=" + (data != null)
+                    + " staticHasProjection=" + hasProjection());
             // Fall back to the statically-stored projection (more reliable across
             // process restarts and avoids MediaProjection data not parceling via extra)
             if ((resultCode == -1 || data == null) && hasProjection()) {
