@@ -5,9 +5,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
@@ -22,6 +24,7 @@ import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -30,7 +33,11 @@ import android.os.IBinder;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
@@ -68,6 +75,19 @@ public class RecorderService extends Service {
     private static MediaProjection sMediaProjection;
     private static int sResultCode;
     private static Intent sResultData;
+
+    // --- Recording-time top bar overlay ---
+    private WindowManager mWindowManager;
+    private View mTimeBar;
+    private TextView mTimeText;
+    private Handler mTimeHandler;
+    private long mStartTime;
+    private Runnable mTimeUpdater;
+
+    // --- Low-battery auto-stop ---
+    private static final int LOW_BATTERY_THRESHOLD = 15; // percent
+    private BroadcastReceiver mBatteryReceiver;
+    private boolean mBatteryStopNotified = false;
 
     public static void setMediaProjection(int resultCode, Intent data) {
         sResultCode = resultCode;
@@ -204,8 +224,114 @@ public class RecorderService extends Service {
         mRecording = true;
         mMediaRecorder.start();
         startForegroundCompat(NOTIF_ID, buildNotification("● Recording"));
+        showRecordingTimeBar();
+        registerBatteryMonitor();
         Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show();
         showDrmNoteIfApplicable();
+    }
+
+    /**
+     * Shows a small red bar with white recording-time text at the very top of the
+     * screen, aligned with the status bar / battery indicator, while recording.
+     */
+    private void showRecordingTimeBar() {
+        try {
+            mWindowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+            LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            mTimeBar = inflater.inflate(R.layout.overlay_recording_time, null);
+            mTimeText = mTimeBar.findViewById(R.id.tv_rec_time);
+
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                            : WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT);
+
+            // Place at the top-right, in line with the status bar / battery indicator.
+            params.gravity = Gravity.TOP | Gravity.END;
+            params.x = 8;
+            params.y = 10; // just below the status bar icons
+
+            mWindowManager.addView(mTimeBar, params);
+
+            // Start ticking the time every second
+            mStartTime = System.currentTimeMillis();
+            mTimeHandler = new Handler();
+            mTimeUpdater = new Runnable() {
+                @Override
+                public void run() {
+                    if (mTimeText != null) {
+                        long elapsed = System.currentTimeMillis() - mStartTime;
+                        long sec = (elapsed / 1000) % 60;
+                        long min = (elapsed / 60000) % 60;
+                        long hr = elapsed / 3600000;
+                        mTimeText.setText(String.format(Locale.US, "%02d:%02d:%02d", hr, min, sec));
+                    }
+                    if (mTimeHandler != null) {
+                        mTimeHandler.postDelayed(this, 1000);
+                    }
+                }
+            };
+            mTimeHandler.post(mTimeUpdater);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not show time bar", e);
+        }
+    }
+
+    private void hideRecordingTimeBar() {
+        if (mTimeHandler != null) {
+            mTimeHandler.removeCallbacks(mTimeUpdater);
+            mTimeHandler = null;
+        }
+        if (mTimeBar != null && mWindowManager != null) {
+            try {
+                mWindowManager.removeView(mTimeBar);
+            } catch (Exception ignored) {
+            }
+            mTimeBar = null;
+            mTimeText = null;
+        }
+    }
+
+    /**
+     * Registers a battery receiver that auto-stops the recording when the battery
+     * gets low, so the MP4 file is saved cleanly and doesn't corrupt.
+     */
+    private void registerBatteryMonitor() {
+        mBatteryStopNotified = false;
+        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        mBatteryReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+                if (scale <= 0) return;
+                int percent = (int) ((level * 100f) / scale);
+                if (percent <= LOW_BATTERY_THRESHOLD && mRecording && !mBatteryStopNotified) {
+                    mBatteryStopNotified = true;
+                    Toast.makeText(context,
+                            "Battery low (" + percent + "%) — stopping recording to save file",
+                            Toast.LENGTH_LONG).show();
+                    stopRecording();
+                }
+            }
+        };
+        registerReceiver(mBatteryReceiver, filter);
+    }
+
+    private void unregisterBatteryMonitor() {
+        if (mBatteryReceiver != null) {
+            try {
+                unregisterReceiver(mBatteryReceiver);
+            } catch (Exception ignored) {
+            }
+            mBatteryReceiver = null;
+        }
     }
 
     /**
@@ -260,6 +386,10 @@ public class RecorderService extends Service {
         sMediaProjection = null;
 
         mRecording = false;
+
+        // Clean up the recording-time bar and battery monitor
+        hideRecordingTimeBar();
+        unregisterBatteryMonitor();
 
         if (mOutputFile != null && mOutputFile.exists()) {
             scanFile(mOutputFile);
