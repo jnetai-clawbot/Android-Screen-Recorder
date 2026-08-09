@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -21,6 +22,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -348,6 +350,12 @@ public class BubbleService extends Service {
     }
 
     private void startRecording() {
+        // If we are already recording, this button acts as STOP instead of
+        // starting a new recording.
+        if (RecorderService.isRecording()) {
+            stopRecording();
+            return;
+        }
         toggleExpanded();
         // We cannot startActivityForResult from a service directly, so route through MainActivity.
         Intent mainIntent = new Intent(this, MainActivity.class)
@@ -455,12 +463,10 @@ public class BubbleService extends Service {
     }
 
     private void showScreenshotBubble() {
-        // Add a separate draggable screenshot bubble (only when overlay mode is on)
+        // Add a separate draggable screenshot bubble. This should show whenever the
+        // screenshot toggle is tapped, regardless of overlay_mode, so the camera
+        // bubble always appears for one-tap screenshots.
         try {
-            boolean overlayOn = getSharedPreferences("screenrecorder", MODE_PRIVATE)
-                    .getBoolean("overlay_mode", false);
-            if (!overlayOn) return;
-
             LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             if (mScreenshotBubble != null) return;
             mScreenshotBubble = inflater.inflate(R.layout.bubble_collapsed, null);
@@ -515,17 +521,46 @@ public class BubbleService extends Service {
     }
 
     private void saveScreenshot(android.graphics.Bitmap bmp) {
-        File dir = com.jnet.screenrecorder.StorageUtil.getScreenshotsDir(this);
         String name = "SCR_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".png";
-        File file = new File(dir, name);
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, fos);
-            bmp.recycle();
-            Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-            mediaScanIntent.setData(android.net.Uri.fromFile(file));
-            sendBroadcast(mediaScanIntent);
-            Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
+        // Save to the visible configured storage location via MediaStore so the
+        // screenshot is accessible in Gallery and goes to the same place selected
+        // in Settings (same approach as recordings). Falls back to the app-private
+        // dir only if MediaStore is unavailable.
+        try {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_DCIM + "/ScreenRecorder/Screenshots");
+            android.net.Uri uri = getContentResolver().insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri != null) {
+                java.io.OutputStream out = getContentResolver().openOutputStream(uri);
+                if (out != null) {
+                    bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+                    out.close();
+                    bmp.recycle();
+                    Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("MediaStore screenshot failed, using fallback", e);
+        }
+        // Fallback: app-private screenshots dir (always writable)
+        try {
+            File dir = com.jnet.screenrecorder.StorageUtil.getScreenshotsDir(this);
+            if (!dir.exists()) dir.mkdirs();
+            File file = new File(dir, name);
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, fos);
+                bmp.recycle();
+                Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                mediaScanIntent.setData(android.net.Uri.fromFile(file));
+                sendBroadcast(mediaScanIntent);
+                Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
             com.jnet.screenrecorder.ErrorLog.e("Save screenshot failed", e);
             Log.e(TAG, "Save screenshot failed", e);
             Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show();
