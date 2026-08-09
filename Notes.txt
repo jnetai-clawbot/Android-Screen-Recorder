@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.3.5 (2026-08-09)
+- **Diagnostic build**: added detailed logging to the screen-capture result callback so the error log shows the exact result code and whether projection data arrived. This pinpoints why recording isn't starting despite pressing "Start now".
+
 ### v1.3.4 (2026-08-09)
 - **FIXED crash after pressing "Start now"** (`RemoteServiceException: startForegroundService() did not call startForeground()`). The projection data wasn't reaching the service via the intent extra, so it returned early without foregrounding → crash ~1 min later. The service now falls back to the statically-stored projection and always calls `startForeground()` even on the error path, so it never crashes.
 

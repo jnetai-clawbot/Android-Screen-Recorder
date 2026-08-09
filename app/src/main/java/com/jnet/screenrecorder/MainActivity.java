@@ -36,21 +36,26 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
-                        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        com.jnet.screenrecorder.ErrorLog.i("Capture result: code=" + result.getResultCode()
+                                + " (RESULT_OK=" + Activity.RESULT_OK + ") data=" + (result.getData() != null));
+                        if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                             // Forward the projection to the recorder and start recording
                             com.jnet.screenrecorder.recorder.RecorderService
-                                    .setMediaProjection(RESULT_OK, result.getData());
+                                    .setMediaProjection(Activity.RESULT_OK, result.getData());
                             Intent recIntent = new Intent(this,
                                     com.jnet.screenrecorder.recorder.RecorderService.class)
                                     .setAction(com.jnet.screenrecorder.recorder.RecorderService.ACTION_START)
-                                    .putExtra("resultCode", RESULT_OK)
+                                    .putExtra("resultCode", Activity.RESULT_OK)
                                     .putExtra("data", result.getData());
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                 startForegroundService(recIntent);
                             } else {
                                 startService(recIntent);
                             }
+                            com.jnet.screenrecorder.ErrorLog.i("Starting recording service");
                         } else {
+                            com.jnet.screenrecorder.ErrorLog.e("Screen capture denied: code=" + result.getResultCode()
+                                    + " data=" + (result.getData() != null));
                             Toast.makeText(this, "Screen capture permission denied", Toast.LENGTH_LONG).show();
                         }
                     });
