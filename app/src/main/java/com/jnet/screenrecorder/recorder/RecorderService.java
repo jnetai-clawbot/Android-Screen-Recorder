@@ -138,12 +138,21 @@ public class RecorderService extends Service {
             Intent data = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ? intent.getParcelableExtra("data", Intent.class)
                     : intent.getParcelableExtra("data");
+            // Fall back to the statically-stored projection (more reliable across
+            // process restarts and avoids MediaProjection data not parceling via extra)
+            if ((resultCode == -1 || data == null) && hasProjection()) {
+                resultCode = getProjectionResultCode();
+                data = getProjectionData();
+            }
             if (resultCode != -1 && data != null) {
                 setMediaProjection(resultCode, data);
                 startRecording();
             } else {
                 com.jnet.screenrecorder.ErrorLog.e("Start recording: screen capture permission not granted");
                 Toast.makeText(this, "Screen capture permission not granted", Toast.LENGTH_LONG).show();
+                // Always foreground the service so startForegroundService() never crashes
+                startForegroundCompat(NOTIF_ID, buildNotification("Tap to record"));
+                stopSelf();
             }
         }
 
