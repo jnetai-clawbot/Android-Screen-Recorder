@@ -133,11 +133,11 @@ public class BubbleService extends Service {
     }
 
     private void startForegroundCompat(int id, Notification notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
-        } else {
-            startForeground(id, notification);
-        }
+        // NOTE: do NOT use FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION here.
+        // The bubble service has no MediaProjection of its own — using that type
+        // without an active projection throws ForegroundServiceTypeException,
+        // which crashed the app the moment the bubble started after overlay grant.
+        startForeground(id, notification);
     }
 
     @Override
