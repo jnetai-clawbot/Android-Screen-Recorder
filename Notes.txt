@@ -76,6 +76,11 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.9 (2026-08-10)
+- **Settings action added to the notification bar** (Start/Stop/Settings) so recording works on GrapheneOS without the overlay bubble.
+- **Version number shown in Settings** (About section) — full version tag.
+- **FIXED screenshot "grant capture permissions first"**: tapping the camera bubble with no screen-capture permission now routes through MainActivity to request it (ACTION_REQUEST_SCREENSHOT), then the user taps the camera bubble again to take the screenshot.
+
 ### v1.4.8 (2026-08-09)
 - **FIXED screenshot failing on Samsung S9**: the manifest declared BubbleService with foregroundServiceType="specialUse" only, so starting it with the mediaProjection type threw IllegalArgumentException ("foregroundServiceType 0x20 is not a subset of 0x40000000"). Changed BubbleService to foregroundServiceType="specialUse|mediaProjection" so the runtime mediaProjection type is a subset. Screenshots now work.
 - **Overlay status hint**: clearer "tap to enable" message when overlay permission is not granted (helps on GrapheneOS where SYSTEM_ALERT_WINDOW is stricter).

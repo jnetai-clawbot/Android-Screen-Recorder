@@ -26,11 +26,13 @@ import com.jnet.screenrecorder.settings.SettingsActivity;
 public class MainActivity extends AppCompatActivity {
 
     public static final String ACTION_REQUEST_CAPTURE = "com.jnet.screenrecorder.REQUEST_CAPTURE";
+    public static final String ACTION_REQUEST_SCREENSHOT = "com.jnet.screenrecorder.REQUEST_SCREENSHOT";
 
     private static final int REQUEST_OVERLAY = 1001;
 
     private MaterialButton btnOverlay, btnAudio, btnSettings;
     private TextView tvOverlayStatus, tvAudioStatus;
+    private boolean mPendingScreenshot = false;
 
     private final ActivityResultLauncher<Intent> captureLauncher =
             registerForActivityResult(
@@ -39,9 +41,16 @@ public class MainActivity extends AppCompatActivity {
                         com.jnet.screenrecorder.ErrorLog.i("Capture result: code=" + result.getResultCode()
                                 + " (RESULT_OK=" + Activity.RESULT_OK + ") data=" + (result.getData() != null));
                         if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                            // Forward the projection to the recorder and start recording
+                            // Store the projection so screenshots can use it too.
                             com.jnet.screenrecorder.recorder.RecorderService
                                     .setMediaProjection(Activity.RESULT_OK, result.getData());
+                            if (mPendingScreenshot) {
+                                // This capture was requested for a screenshot, not a recording.
+                                mPendingScreenshot = false;
+                                com.jnet.screenrecorder.ErrorLog.i("Screen capture granted for screenshot");
+                                Toast.makeText(this, "Screen capture granted — tap the camera bubble again", Toast.LENGTH_LONG).show();
+                                return;
+                            }
                             Intent recIntent = new Intent(this,
                                     com.jnet.screenrecorder.recorder.RecorderService.class)
                                     .setAction(com.jnet.screenrecorder.recorder.RecorderService.ACTION_START)
@@ -54,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                             com.jnet.screenrecorder.ErrorLog.i("Starting recording service");
                         } else {
+                            mPendingScreenshot = false;
                             com.jnet.screenrecorder.ErrorLog.e("Screen capture denied: code=" + result.getResultCode()
                                     + " data=" + (result.getData() != null));
                             Toast.makeText(this, "Screen capture permission denied", Toast.LENGTH_LONG).show();
@@ -88,6 +98,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Handle request coming from the bubble's Record button
         if (getIntent() != null && ACTION_REQUEST_CAPTURE.equals(getIntent().getAction())) {
+            requestScreenCapture();
+        } else if (getIntent() != null && ACTION_REQUEST_SCREENSHOT.equals(getIntent().getAction())) {
+            mPendingScreenshot = true;
             requestScreenCapture();
         }
 
@@ -129,6 +142,9 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         if (intent != null && ACTION_REQUEST_CAPTURE.equals(intent.getAction())) {
+            requestScreenCapture();
+        } else if (intent != null && ACTION_REQUEST_SCREENSHOT.equals(intent.getAction())) {
+            mPendingScreenshot = true;
             requestScreenCapture();
         }
     }

@@ -393,7 +393,17 @@ public class BubbleService extends Service {
 
     private void takeScreenshot() {
         if (!RecorderService.hasProjection()) {
-            Toast.makeText(this, "Grant screen capture first (start a recording once)", Toast.LENGTH_LONG).show();
+            // No screen-capture permission yet — request it via MainActivity, then
+            // the user taps the camera bubble again to take the screenshot.
+            Toast.makeText(this, "Grant screen capture first", Toast.LENGTH_LONG).show();
+            try {
+                Intent mainIntent = new Intent(this, MainActivity.class)
+                        .setAction(MainActivity.ACTION_REQUEST_SCREENSHOT)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(mainIntent);
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Could not request screenshot permission", e);
+            }
             return;
         }
         // Hide both bubbles so they don't appear in the screenshot.
@@ -679,6 +689,14 @@ public class BubbleService extends Service {
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             builder.addAction(R.drawable.ic_record, getString(R.string.start_recording), startPending);
         }
+
+        // Settings action (always available in the notification bar)
+        Intent settingsIntent = new Intent(this, com.jnet.screenrecorder.settings.SettingsActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent settingsPending = PendingIntent.getActivity(
+                this, 3, settingsIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        builder.addAction(R.drawable.ic_gear, getString(R.string.settings_title), settingsPending);
 
         return builder.build();
     }

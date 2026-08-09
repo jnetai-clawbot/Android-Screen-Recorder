@@ -172,6 +172,11 @@
     <PreferenceCategory android:title="About">
 
         <Preference
+            android:key="version"
+            android:title="Version"
+            android:summary="1.4.8" />
+
+        <Preference
             android:key="about"
             android:title="About J~Net Screen Recorder"
             android:summary="Made by jnetai.com" />
