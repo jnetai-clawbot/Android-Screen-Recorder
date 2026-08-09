@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.10 (2026-08-10)
+- **New "Record DRM-protected content (experimental)" toggle** in Settings → Capture & overlay. When enabled, the app calls `MediaProjection.setSecure(false)` to attempt capturing protected surfaces (for Clapper / own-content experiments, not Netflix/copyright media). On most devices Widevine L1/L3 still records blank, but it's worth trying.
+
 ### v1.4.9 (2026-08-10)
 - **Settings action added to the notification bar** (Start/Stop/Settings) so recording works on GrapheneOS without the overlay bubble.
 - **Version number shown in Settings** (About section) — full version tag.

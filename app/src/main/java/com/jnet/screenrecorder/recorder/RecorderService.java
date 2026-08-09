@@ -264,6 +264,20 @@ public class RecorderService extends Service {
                 mMediaRecorder.getSurface(),
                 null, null);
 
+        // DRM capture: if the user enabled "Record DRM-protected content", try to
+        // disable the secure flag so protected surfaces (Clapper, own content) are
+        // captured. On most devices this still records blank for Widevine L1/L3,
+        // but it's worth attempting for non-Netflix experiments.
+        boolean recordDrm = prefs.getBoolean("record_drm", false);
+        if (recordDrm) {
+            try {
+                mMediaProjection.setSecure(false);
+                com.jnet.screenrecorder.ErrorLog.i("DRM capture enabled (setSecure(false))");
+            } catch (Throwable t) {
+                com.jnet.screenrecorder.ErrorLog.e("Could not disable secure flag for DRM capture", t);
+            }
+        }
+
         mRecording = true;
         mMediaRecorder.start();
         startForegroundCompat(NOTIF_ID, buildNotification("● Recording"));

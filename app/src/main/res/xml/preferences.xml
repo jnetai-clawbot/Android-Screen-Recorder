@@ -138,6 +138,12 @@
             android:defaultValue="true" />
 
         <SwitchPreference
+            android:key="record_drm"
+            android:title="Record DRM-protected content (experimental)"
+            android:summary="Attempt to capture DRM-protected surfaces (Clapper, own content). May record blank on some apps."
+            android:defaultValue="false" />
+
+        <SwitchPreference
             android:key="show_tips"
             android:title="Show tips"
             android:summary="Show a tip toast when recording starts (OFF by default)"
