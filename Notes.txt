@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.2.8 (2026-08-09)
+- **FIXED the actual crash when enabling bubble mode**: `ClassCastException: LinearLayout$LayoutParams cannot be cast to FrameLayout$LayoutParams`. The bubble button lives inside a `FrameLayout` (bubble_collapsed.xml) but the code set `LinearLayout.LayoutParams` on it, which crashed `FrameLayout.onMeasure` the moment the bubble was shown. Now uses `FrameLayout.LayoutParams` in both `createBubble()` and `refreshFromSettings()`.
+
 ### v1.2.7 (2026-08-09)
 - **FIXED crash when enabling bubble mode**: the bubble service was adding the overlay window (`addView`) BEFORE calling `startForeground()`. On Android 14+ this can crash the service (ForegroundServiceTypeException / BadTokenException). Now `startForeground()` is called first, then the bubble is created.
 

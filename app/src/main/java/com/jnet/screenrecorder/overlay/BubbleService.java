@@ -96,8 +96,9 @@ public class BubbleService extends Service {
             if (btn != null) {
                 int size = parseSize(prefs.getString("bubble_size", "44"));
                 int px = (int) (size * getResources().getDisplayMetrics().density);
-                android.widget.LinearLayout.LayoutParams lp =
-                        new android.widget.LinearLayout.LayoutParams(px, px);
+                // bubble_collapsed.xml root is a FrameLayout -> use FrameLayout.LayoutParams
+                android.widget.FrameLayout.LayoutParams lp =
+                        new android.widget.FrameLayout.LayoutParams(px, px);
                 btn.setLayoutParams(lp);
                 int colour = parseColour(prefs.getString("bubble_colour", "0xE61565C0"));
                 btn.getBackground().mutate().setTint(colour);
@@ -175,8 +176,9 @@ public class BubbleService extends Service {
 
         // Apply saved bubble size (dp)
         int bubbleSize = parseSize(prefs.getString("bubble_size", "44"));
-        android.widget.LinearLayout.LayoutParams lp =
-                new android.widget.LinearLayout.LayoutParams(
+        // bubble_collapsed.xml root is a FrameLayout -> use FrameLayout.LayoutParams
+        android.widget.FrameLayout.LayoutParams lp =
+                new android.widget.FrameLayout.LayoutParams(
                         (int) (bubbleSize * getResources().getDisplayMetrics().density),
                         (int) (bubbleSize * getResources().getDisplayMetrics().density));
         btnExpand.setLayoutParams(lp);
