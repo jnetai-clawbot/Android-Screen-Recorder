@@ -507,20 +507,40 @@ public class RecorderService extends Service {
                 this, 0, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent stopIntent = new Intent(this, RecorderService.class).setAction(ACTION_STOP);
-        PendingIntent stopPending = PendingIntent.getService(
-                this, 1, stopIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.notification_title_recording))
                 .setContentText(text)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(contentIntent)
-                .setOngoing(true)
-                .addAction(0, getString(R.string.stop_recording), stopPending);
+                .setOngoing(true);
+
+        if (mRecording) {
+            // Recording → show a STOP toggle
+            Intent stopIntent = new Intent(this, RecorderService.class).setAction(ACTION_STOP);
+            PendingIntent stopPending = PendingIntent.getService(
+                    this, 1, stopIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(R.drawable.ic_stop, getString(R.string.stop_recording), stopPending);
+        } else {
+            // Idle → show a START toggle (routes through MainActivity for screen-capture permission)
+            Intent startIntent = new Intent(this, com.jnet.screenrecorder.MainActivity.class)
+                    .setAction(com.jnet.screenrecorder.MainActivity.ACTION_REQUEST_CAPTURE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            PendingIntent startPending = PendingIntent.getActivity(
+                    this, 2, startIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(R.drawable.ic_record, getString(R.string.start_recording), startPending);
+        }
 
         return builder.build();
+    }
+
+    /** Refreshes the ongoing notification so its action matches the recording state. */
+    private void refreshNotification() {
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (nm != null) {
+            nm.notify(NOTIF_ID, buildNotification(mRecording ? "● Recording" : "Tap to record"));
+        }
     }
 
     @Override
