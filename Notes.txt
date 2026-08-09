@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.1 (2026-08-09)
+- **Recordings now save to a visible location**: on Android 10+ recordings are written to **DCIM/ScreenRecorder/Recordings** via MediaStore, so you can find them in Gallery / File Manager. They survive app crashes / battery death (written to disk immediately). Falls back to the app-private folder only if MediaStore is unavailable.
+
 ### v1.4.0 (2026-08-09)
 - **Screenshot button is now a toggle**: tapping it shows/hides a small camera 📸 bubble. Tapping the camera bubble takes an instant screenshot (1 tap, no wasted time).
 - **Tip overlay hidden by default**: the "Tip: DRM apps..." toast no longer shows on recording start unless you enable **Settings → Show tips** (new toggle, OFF by default).

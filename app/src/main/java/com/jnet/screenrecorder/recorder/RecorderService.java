@@ -72,6 +72,7 @@ public class RecorderService extends Service {
     private Handler mHandler;
     private boolean mRecording = false;
     private File mOutputFile;
+    private Uri mOutputUri;
 
     private static MediaProjection sMediaProjection;
     private static int sResultCode;
@@ -162,6 +163,39 @@ public class RecorderService extends Service {
         return START_NOT_STICKY;
     }
 
+    /**
+     * Creates the output file for a recording.
+     * On Android 10+ (scoped storage) this uses MediaStore to write to the visible
+     * DCIM/ScreenRecorder/Recordings folder, so recordings are easy to find and
+     * survive app crashes / battery death. Falls back to the app-private external
+     * dir only if MediaStore is unavailable.
+     */
+    private File createOutputFile(String name) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Video.Media.DISPLAY_NAME, name);
+                values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+                values.put(MediaStore.Video.Media.RELATIVE_PATH,
+                        Environment.DIRECTORY_DCIM + "/ScreenRecorder/Recordings");
+                Uri uri = getContentResolver().insert(
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
+                if (uri != null) {
+                    // Store the URI so we can delete/scan it later; return a File
+                    // pointing at the same path for MediaRecorder.
+                    String path = uri.getPath();
+                    mOutputUri = uri;
+                    return new File(path);
+                }
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("MediaStore create failed, using fallback", e);
+            }
+        }
+        // Fallback: app-private external dir (always writable)
+        File dir = getRecordingsDir();
+        return new File(dir, name);
+    }
+
     private void startRecording() {
         if (mMediaProjection != null) {
             stopRecording();
@@ -189,9 +223,8 @@ public class RecorderService extends Service {
         int height = metrics.heightPixels;
         int dpi = metrics.densityDpi;
 
-        File dir = getRecordingsDir();
         String name = "REC_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".mp4";
-        mOutputFile = new File(dir, name);
+        mOutputFile = createOutputFile(name);
 
         mMediaRecorder = new MediaRecorder();
 
