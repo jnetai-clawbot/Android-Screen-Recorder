@@ -148,7 +148,19 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // Storage — needed to create the save folders (DCIM/ScreenRecorder).
+        // On Android 10+ we use scoped storage (no permission), but on older
+        // devices (S8 / API 24-28) we need WRITE_EXTERNAL_STORAGE to create dirs.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+        }
+
         if (needed.isEmpty()) {
+            // No runtime permissions needed — just create the folders.
+            createStorageFolders();
             return;
         }
 
@@ -156,14 +168,28 @@ public class MainActivity extends AppCompatActivity {
                 .setTitle("Permissions")
                 .setMessage("J~Net Screen Recorder needs a few permissions:\n\n" +
                         "🎙 Microphone — to record audio with your screen\n" +
-                        "📁 Storage — to save recordings & screenshots (old devices)\n" +
+                        "📁 Storage — to create the save folders & store recordings\n" +
                         "🔔 Notifications — to show recording status\n\n" +
                         "You'll only be asked this once.\n" +
                         "Screen capture is asked separately when you start recording.")
-                .setPositiveButton("Grant all", (d, w) ->
-                        requestPermissions(needed.toArray(new String[0]), 3001))
+                .setPositiveButton("Grant all", (d, w) -> {
+                    requestPermissions(needed.toArray(new String[0]), 3001);
+                    createStorageFolders();
+                })
                 .setNegativeButton("Later", null)
                 .show();
+    }
+
+    /** Creates the ScreenRecorder/Recordings and ScreenRecorder/Screenshots folders. */
+    private void createStorageFolders() {
+        try {
+            boolean ok = StorageUtil.ensureFolders(this);
+            if (ok) {
+                Toast.makeText(this, "Storage folders ready", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            // Never crash on storage issues — recording will just need permission later.
+        }
     }
 
     @Override
