@@ -364,8 +364,9 @@ public class RecorderService extends Service {
      * Non-DRM streams (Twitch, YouTube web, self-hosted/own content) record normally.
      */
     private void showDrmNoteIfApplicable() {
+        // Tips are OFF by default. Only show if the user enabled "Show tips" in Settings.
         if (!getSharedPreferences("settings", MODE_PRIVATE)
-                .getBoolean("record_streams", true)) {
+                .getBoolean("show_tips", false)) {
             return;
         }
         // Just inform the user DRM apps will record as a blank screen.

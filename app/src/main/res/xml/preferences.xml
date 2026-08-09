@@ -137,6 +137,12 @@
             android:summary="Enables capture of non-protected streams (Twitch, YouTube web, self-hosted)"
             android:defaultValue="true" />
 
+        <SwitchPreference
+            android:key="show_tips"
+            android:title="Show tips"
+            android:summary="Show a tip toast when recording starts (OFF by default)"
+            android:defaultValue="false" />
+
         <Preference
             android:key="drm_note"
             android:title="About DRM-protected content"

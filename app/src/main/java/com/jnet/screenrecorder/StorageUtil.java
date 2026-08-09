@@ -57,8 +57,15 @@ public final class StorageUtil {
 
     /** Explicitly creates the base, Recordings and Screenshots folders if missing. */
     public static boolean ensureFolders(Context context) {
+        // Try the configured DCIM path first; if it can't be created (scoped storage
+        // on Android 10+), fall back to the app-private external dir which is always
+        // writable without any storage permission.
         File base = getBaseDir(context);
         boolean baseOk = base.exists() || base.mkdirs();
+        if (!baseOk) {
+            base = context.getExternalFilesDir(null);
+            baseOk = base != null && (base.exists() || base.mkdirs());
+        }
         File rec = new File(base, "Recordings");
         boolean recOk = rec.exists() || rec.mkdirs();
         File scr = new File(base, "Screenshots");

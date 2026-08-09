@@ -76,6 +76,24 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.0 (2026-08-09)
+- **Screenshot button is now a toggle**: tapping it shows/hides a small camera 📸 bubble. Tapping the camera bubble takes an instant screenshot (1 tap, no wasted time).
+- **Tip overlay hidden by default**: the "Tip: DRM apps..." toast no longer shows on recording start unless you enable **Settings → Show tips** (new toggle, OFF by default).
+- **Fixed "Create storage folders" error**: now falls back to the app-private external folder (always writable) if the DCIM path can't be created on Android 10 scoped storage.
+- **Fixed Stop button**: the bubble's Record/Stop buttons now sync with the real recording state, so tapping Stop actually stops instead of starting a new recording.
+
+### v1.3.9 (2026-08-09)
+- **Fixed ENOENT storage error**: recordings now fall back to the app-private external folder (always writable) if the DCIM path can't be created on Android 10 scoped storage.
+
+### v1.3.8 (2026-08-09)
+- **Fixed SecurityException**: startForeground(mediaProjection) is now called BEFORE getMediaProjection().
+
+### v1.3.7 (2026-08-09)
+- **FIXED recording**: RESULT_OK is -1, which collided with the -1 sentinel in the check. Now checks data != null instead.
+
+### v1.3.6 (2026-08-09)
+- Service-side diagnostics for projection delivery.
+
 ### v1.3.5 (2026-08-09)
 - **Diagnostic build**: added detailed logging to the screen-capture result callback so the error log shows the exact result code and whether projection data arrived. This pinpoints why recording isn't starting despite pressing "Start now".
 

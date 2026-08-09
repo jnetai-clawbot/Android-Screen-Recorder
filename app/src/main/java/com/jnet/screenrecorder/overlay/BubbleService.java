@@ -279,8 +279,9 @@ public class BubbleService extends Service {
         btnRecord.setOnClickListener(v -> startRecording());
         btnStop.setOnClickListener(v -> stopRecording());
         btnScreenshot.setOnClickListener(v -> {
-            toggleExpanded();
-            takeScreenshot();
+            // Toggle the camera bubble: show it if hidden, hide it if shown.
+            // Tapping the camera bubble then takes an instant screenshot (1 tap).
+            toggleScreenshotBubble();
         });
         btnSettings.setOnClickListener(v -> {
             toggleExpanded();
@@ -313,6 +314,13 @@ public class BubbleService extends Service {
             } catch (Exception ignored) {
             }
         } else {
+            // Sync Record/Stop buttons with the REAL recording state before showing
+            mRecording = RecorderService.isRecording();
+            ImageButton recBtn = mExpandedView.findViewById(R.id.btn_record);
+            ImageButton stopBtn = mExpandedView.findViewById(R.id.btn_stop);
+            if (recBtn != null) recBtn.setVisibility(mRecording ? View.GONE : View.VISIBLE);
+            if (stopBtn != null) stopBtn.setVisibility(mRecording ? View.VISIBLE : View.GONE);
+
             // expand
             WindowManager.LayoutParams expandedParams = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -424,6 +432,26 @@ public class BubbleService extends Service {
             imageReader.close();
             ht.quitSafely();
         }, 400);
+    }
+
+    /** Toggles the camera screenshot bubble on/off. */
+    private void toggleScreenshotBubble() {
+        if (mScreenshotBubble != null) {
+            hideScreenshotBubble();
+        } else {
+            showScreenshotBubble();
+        }
+    }
+
+    /** Removes the camera screenshot bubble if it is showing. */
+    private void hideScreenshotBubble() {
+        if (mScreenshotBubble != null) {
+            try {
+                mWindowManager.removeView(mScreenshotBubble);
+            } catch (Exception ignored) {
+            }
+            mScreenshotBubble = null;
+        }
     }
 
     private void showScreenshotBubble() {
@@ -571,6 +599,13 @@ public class BubbleService extends Service {
                 mWindowManager.removeView(mBubbleView);
             } catch (Exception ignored) {
             }
+        }
+        if (mScreenshotBubble != null) {
+            try {
+                mWindowManager.removeView(mScreenshotBubble);
+            } catch (Exception ignored) {
+            }
+            mScreenshotBubble = null;
         }
         if (mMediaProjection != null) {
             mMediaProjection.stop();
