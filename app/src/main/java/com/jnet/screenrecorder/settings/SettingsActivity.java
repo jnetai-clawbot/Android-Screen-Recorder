@@ -3,15 +3,12 @@ package com.jnet.screenrecorder.settings;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -51,26 +48,7 @@ public class SettingsActivity extends AppCompatActivity {
     public static class SettingsFragment extends PreferenceFragment
             implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-        // Folder picker launcher for selecting the storage save location
-        private final ActivityResultLauncher<Uri> folderPicker = registerForActivityResult(
-                new ActivityResultContracts.OpenDocumentTree(),
-                uri -> {
-                    if (uri == null) return;
-                    try {
-                        // Take persistable permission so we can keep writing to the folder
-                        getActivity().getContentResolver().takePersistableUriPermission(
-                                uri,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                        // Store the picked folder URI
-                        getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
-                                .edit().putString("storage_location_uri", uri.toString()).apply();
-                        Toast.makeText(getActivity(), "Save folder selected", Toast.LENGTH_SHORT).show();
-                        updateStorageSummary();
-                    } catch (Exception e) {
-                        Toast.makeText(getActivity(), "Could not use that folder", Toast.LENGTH_LONG).show();
-                    }
-                });
+        private static final int REQUEST_FOLDER_PICKER = 9001;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
@@ -117,9 +95,36 @@ public class SettingsActivity extends AppCompatActivity {
 
         private void launchFolderPicker() {
             try {
-                folderPicker.launch(null);
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                startActivityForResult(intent, REQUEST_FOLDER_PICKER);
             } catch (Exception e) {
                 Toast.makeText(getActivity(), "Folder picker unavailable", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        public void onActivityResult(int requestCode, int resultCode, Intent data) {
+            super.onActivityResult(requestCode, resultCode, data);
+            if (requestCode == REQUEST_FOLDER_PICKER && resultCode == AppCompatActivity.RESULT_OK
+                    && data != null && data.getData() != null) {
+                Uri uri = data.getData();
+                try {
+                    // Take persistable permission so we can keep writing to the folder
+                    getActivity().getContentResolver().takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                    | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    // Store the picked folder URI
+                    getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                            .edit().putString("storage_location_uri", uri.toString()).apply();
+                    Toast.makeText(getActivity(), "Save folder selected", Toast.LENGTH_SHORT).show();
+                    updateStorageSummary();
+                } catch (Exception e) {
+                    Toast.makeText(getActivity(), "Could not use that folder", Toast.LENGTH_LONG).show();
+                }
             }
         }
 
