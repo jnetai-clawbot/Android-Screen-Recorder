@@ -257,8 +257,22 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_OVERLAY) {
             if (Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show();
+                // Auto-show the bubble as soon as overlay permission is granted
+                if (!BubbleService.isRunning()) {
+                    startBubbleService();
+                }
             }
             updateOverlayStatus();
         }
+    }
+
+    private void startBubbleService() {
+        Intent intent = new Intent(this, BubbleService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+        Toast.makeText(this, "Bubble shown — drag it or tap to expand", Toast.LENGTH_SHORT).show();
     }
 }
