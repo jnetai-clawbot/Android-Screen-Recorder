@@ -30,6 +30,32 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="Quick-access bubble">
+
+        <ListPreference
+            android:key="bubble_size"
+            android:title="Bubble size"
+            android:summary="How big the quick-access bubble is"
+            android:entries="@array/bubble_sizes"
+            android:entryValues="@array/bubble_size_values"
+            android:defaultValue="44" />
+
+        <ListPreference
+            android:key="bubble_colour"
+            android:title="Bubble colour"
+            android:summary="Colour of the quick-access bubble"
+            android:entries="@array/bubble_colours"
+            android:entryValues="@array/bubble_colour_values"
+            android:defaultValue="0xE61565C0" />
+
+        <SwitchPreference
+            android:key="bubble_auto_show"
+            android:title="Show bubble on app open"
+            android:summary="Automatically show the bubble when the app starts (if overlay granted)"
+            android:defaultValue="true" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Audio">
 
         <SwitchPreference

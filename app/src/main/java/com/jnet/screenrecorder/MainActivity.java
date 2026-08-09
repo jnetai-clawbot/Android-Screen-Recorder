@@ -169,6 +169,24 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         updateOverlayStatus();
         updateAudioStatus();
+        maybeAutoShowBubble();
+    }
+
+    /**
+     * If overlay permission is granted and "Show bubble on app open" is enabled,
+     * automatically show the bubble when the app starts (if it isn't already up).
+     */
+    private void maybeAutoShowBubble() {
+        if (!Settings.canDrawOverlays(this)) {
+            return;
+        }
+        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
+        if (!prefs.getBoolean("bubble_auto_show", true)) {
+            return;
+        }
+        if (!BubbleService.isRunning()) {
+            startBubbleService();
+        }
     }
 
     private void toggleBubble() {

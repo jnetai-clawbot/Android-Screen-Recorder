@@ -109,6 +109,16 @@ public class SettingsActivity extends AppCompatActivity {
             if ("show_screenshot_button".equals(key)) {
                 // toggle screenshot visibility — handled by bubble on next open
             }
+            if ("bubble_size".equals(key) || "bubble_colour".equals(key)) {
+                // Refresh the live bubble if it's running
+                if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+                    // Send an intent to the running service to re-read settings
+                    Intent i = new Intent(getActivity(),
+                            com.jnet.screenrecorder.overlay.BubbleService.class)
+                            .setAction("com.jnet.screenrecorder.REFRESH_BUBBLE");
+                    getActivity().startService(i);
+                }
+            }
         }
     }
 }

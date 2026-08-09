@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
@@ -78,6 +79,48 @@ public class BubbleService extends Service {
         return sRunning;
     }
 
+    /**
+     * Re-applies the bubble size, colour and location from the current settings
+     * to a live-running bubble (used when settings change while it's visible).
+     */
+    public void refreshFromSettings() {
+        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
+        if (mBubbleView != null) {
+            ImageButton btn = mBubbleView.findViewById(R.id.btn_bubble);
+            if (btn != null) {
+                int size = parseSize(prefs.getString("bubble_size", "44"));
+                int px = (int) (size * getResources().getDisplayMetrics().density);
+                android.widget.LinearLayout.LayoutParams lp =
+                        new android.widget.LinearLayout.LayoutParams(px, px);
+                btn.setLayoutParams(lp);
+                int colour = parseColour(prefs.getString("bubble_colour", "0xE61565C0"));
+                btn.getBackground().mutate().setTint(colour);
+            }
+        }
+    }
+
+    /** Parses a colour value stored as a string like "0xE61565C0" into an int ARGB. */
+    private int parseColour(String hex) {
+        try {
+            String s = hex.trim();
+            if (s.startsWith("0x") || s.startsWith("0X")) {
+                s = s.substring(2);
+            }
+            return (int) Long.parseLong(s, 16);
+        } catch (Exception e) {
+            return 0xE61565C0;
+        }
+    }
+
+    /** Parses a bubble size stored as a string like "44" into an int (dp). */
+    private int parseSize(String s) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return 44;
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -101,6 +144,10 @@ public class BubbleService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
+            if ("com.jnet.screenrecorder.REFRESH_BUBBLE".equals(action)) {
+                refreshFromSettings();
+                return START_STICKY;
+            }
             if (RecorderService.isRecording()) {
                 mRecording = true;
             }
@@ -110,10 +157,23 @@ public class BubbleService extends Service {
 
     private void createBubble() {
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
 
         // --- Collapsed bubble ---
         mBubbleView = inflater.inflate(R.layout.bubble_collapsed, null);
         ImageButton btnExpand = mBubbleView.findViewById(R.id.btn_bubble);
+
+        // Apply saved bubble size (dp)
+        int bubbleSize = parseSize(prefs.getString("bubble_size", "44"));
+        android.widget.LinearLayout.LayoutParams lp =
+                new android.widget.LinearLayout.LayoutParams(
+                        (int) (bubbleSize * getResources().getDisplayMetrics().density),
+                        (int) (bubbleSize * getResources().getDisplayMetrics().density));
+        btnExpand.setLayoutParams(lp);
+
+        // Apply saved bubble colour
+        int bubbleColour = parseColour(prefs.getString("bubble_colour", "0xE61565C0"));
+        btnExpand.getBackground().mutate().setTint(bubbleColour);
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -124,8 +184,10 @@ public class BubbleService extends Service {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
         params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 100;
-        params.y = 300;
+
+        // Restore saved bubble location (if any)
+        params.x = prefs.getInt("bubble_x", 100);
+        params.y = prefs.getInt("bubble_y", 300);
 
         mBubbleView.setOnTouchListener((v, event) -> {
             switch (event.getAction()) {
@@ -150,7 +212,14 @@ public class BubbleService extends Service {
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
-                    if (!mDragging) {
+                    if (mDragging) {
+                        // Save the bubble location so it's restored next launch
+                        getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                .edit()
+                                .putInt("bubble_x", params.x)
+                                .putInt("bubble_y", params.y)
+                                .apply();
+                    } else {
                         // tap -> toggle expanded
                         toggleExpanded();
                     }
