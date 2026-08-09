@@ -187,6 +187,18 @@ public class BubbleService extends Service {
         int bubbleColour = parseColour(prefs.getString("bubble_colour", "0xE61565C0"));
         btnExpand.getBackground().mutate().setTint(bubbleColour);
 
+        // Semi-transparent until pressed, then fully visible
+        btnExpand.setAlpha(0.55f);
+        btnExpand.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                v.setAlpha(1.0f);
+            } else if (event.getAction() == MotionEvent.ACTION_UP
+                    || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                v.setAlpha(0.55f);
+            }
+            return false;
+        });
+
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -511,13 +523,35 @@ public class BubbleService extends Service {
                 this, 0, openIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.show_bubble))
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(contentIntent)
-                .setOngoing(true)
-                .build();
+                .setOngoing(true);
+
+        // Backup Start/Stop controls in the notification bar (AZ-style)
+        boolean recording = RecorderService.isRecording();
+        if (recording) {
+            // Stop action
+            Intent stopIntent = new Intent(this, RecorderService.class)
+                    .setAction(RecorderService.ACTION_STOP);
+            PendingIntent stopPending = PendingIntent.getService(
+                    this, 1, stopIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(R.drawable.ic_stop, getString(R.string.stop_recording), stopPending);
+        } else {
+            // Start action -> route through MainActivity for screen-capture permission
+            Intent startIntent = new Intent(this, MainActivity.class)
+                    .setAction(MainActivity.ACTION_REQUEST_CAPTURE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            PendingIntent startPending = PendingIntent.getActivity(
+                    this, 2, startIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(R.drawable.ic_record, getString(R.string.start_recording), startPending);
+        }
+
+        return builder.build();
     }
 
     @Override
