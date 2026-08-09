@@ -378,6 +378,8 @@ public class BubbleService extends Service {
             Toast.makeText(this, "Grant screen capture first (start a recording once)", Toast.LENGTH_LONG).show();
             return;
         }
+        // Hide both bubbles so they don't appear in the screenshot.
+        hideBubblesForScreenshot();
         if (mMediaProjection == null) {
             try {
                 mMediaProjection = mProjectionManager.getMediaProjection(
@@ -426,6 +428,8 @@ public class BubbleService extends Service {
                     android.graphics.Bitmap cropped = android.graphics.Bitmap.createBitmap(bmp, 0, 0, w, hgt);
                     bmp.recycle();
                     saveScreenshot(cropped);
+                    // Re-show the bubbles now that the screenshot has been captured.
+                    showBubblesAfterScreenshot();
                 }
             } catch (Exception e) {
                 com.jnet.screenrecorder.ErrorLog.e("Screenshot capture failed", e);
@@ -462,6 +466,38 @@ public class BubbleService extends Service {
         }
     }
 
+    /** Hides both the main bubble and the screenshot bubble so they don't appear in a screenshot. */
+    private void hideBubblesForScreenshot() {
+        try {
+            if (mBubbleView != null) mWindowManager.removeView(mBubbleView);
+        } catch (Exception ignored) {
+        }
+        try {
+            if (mScreenshotBubble != null) mWindowManager.removeView(mScreenshotBubble);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Re-shows the main bubble (and the screenshot bubble if it was showing) after a screenshot. */
+    private void showBubblesAfterScreenshot() {
+        // Re-add the main bubble at its saved position.
+        if (mBubbleView != null) {
+            try {
+                WindowManager.LayoutParams p = (WindowManager.LayoutParams) mBubbleView.getLayoutParams();
+                mWindowManager.addView(mBubbleView, p);
+            } catch (Exception ignored) {
+            }
+        }
+        // Re-add the screenshot bubble at its saved position.
+        if (mScreenshotBubble != null) {
+            try {
+                WindowManager.LayoutParams p = (WindowManager.LayoutParams) mScreenshotBubble.getLayoutParams();
+                mWindowManager.addView(mScreenshotBubble, p);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     private void showScreenshotBubble() {
         // Add a separate draggable screenshot bubble. This should show whenever the
         // screenshot toggle is tapped, regardless of overlay_mode, so the camera
@@ -473,6 +509,15 @@ public class BubbleService extends Service {
             ImageButton btn = mScreenshotBubble.findViewById(R.id.btn_bubble);
             btn.setImageResource(R.drawable.ic_camera);
             btn.getBackground().mutate().setTint(0xE62E7D32); // green
+            // Make BOTH the camera icon and the bubble around it clickable.
+            // The ImageButton handles the tap (screenshot); the FrameLayout handles
+            // dragging. This way tapping anywhere on the bubble works.
+            btn.setClickable(true);
+            btn.setFocusable(true);
+            btn.setOnClickListener(v -> takeScreenshot());
+            mScreenshotBubble.setClickable(true);
+            mScreenshotBubble.setFocusable(true);
+            mScreenshotBubble.setFocusableInTouchMode(true);
 
             WindowManager.LayoutParams sp = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.WRAP_CONTENT,
@@ -502,11 +547,11 @@ public class BubbleService extends Service {
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
+                        // Only save the drag position if we actually dragged; the
+                        // tap-to-screenshot is handled by the ImageButton click.
                         if (mShotDragging) {
                             getSharedPreferences("screenrecorder", MODE_PRIVATE).edit()
                                     .putInt("shot_x", sp.x).putInt("shot_y", sp.y).apply();
-                        } else {
-                            takeScreenshot();
                         }
                         return true;
                 }

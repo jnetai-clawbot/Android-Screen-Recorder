@@ -76,6 +76,10 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.6 (2026-08-09)
+- **Camera screenshot bubble now fully clickable**: both the camera icon AND the bubble around it are clickable. The ImageButton handles the tap (takes a screenshot); the FrameLayout handles dragging. Tapping anywhere on the bubble takes a screenshot.
+- **Both bubbles hidden during screenshot**: the main bubble and the camera bubble are hidden before capture so they don't appear in the screenshot, then re-shown after the screenshot is saved.
+
 ### v1.4.5 (2026-08-09)
 - **Record button now STOPS when already recording** (was starting a new recording instead of stopping; user had to use the notification bar to stop).
 - **Screenshot camera bubble now shows** — removed the overlay_mode gate that was hiding it, so tapping the screenshot button always shows the draggable camera bubble for one-tap screenshots.
