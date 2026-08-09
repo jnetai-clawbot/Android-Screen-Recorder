@@ -1,0 +1,72 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.jnet.screenrecorder'
+    compileSdk 34
+
+    signingConfigs {
+        release {
+            def storePath = rootProject.findProperty('keystorePath')
+                    ?: System.getenv('KEYSTORE_PATH')
+                    ?: file('../screenrecorder-keystore.jks').exists() ? '../screenrecorder-keystore.jks' : ''
+            if (storePath && !storePath.isEmpty()) {
+                def ksFile = file(storePath)
+                if (ksFile.exists()) {
+                    def p = rootProject.findProperty('storePassword')
+                            ?: System.getenv('STORE_PASSWORD')
+                            ?: ''
+                    storeFile ksFile
+                    storePassword p
+                    keyAlias rootProject.findProperty('keyAlias')
+                            ?: System.getenv('KEY_ALIAS')
+                            ?: 'screenrecorder'
+                    keyPassword p
+                }
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId 'com.jnet.screenrecorder'
+        // minSdk 26 = Android 8.0 (Samsung S8 ships with this) — covers old + new devices
+        minSdk 26
+        targetSdk 34
+        versionCode 100
+        versionName '1.0.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.release
+            debuggable true
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.preference:preference:1.2.1'
+}

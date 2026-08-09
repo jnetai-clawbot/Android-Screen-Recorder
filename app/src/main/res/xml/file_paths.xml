@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-path name="dcim" path="DCIM/" />
+    <external-path name="screenshots" path="DCIM/ScreenRecorder/Screenshots/" />
+    <external-path name="recordings" path="DCIM/ScreenRecorder/Recordings/" />
+    <files-path name="internal" path="." />
+</paths>

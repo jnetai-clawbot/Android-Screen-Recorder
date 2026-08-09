@@ -1,0 +1,75 @@
+# Notes.txt — Android-Screen-Recorder
+
+## What this is
+A reliable Android screen recorder that records **video + audio** and captures **screenshots**, with a **floating quick-access bubble** overlay — like AZ Screen Recorder but built to be more dependable.
+
+## Device compatibility
+Works on **old AND new Android devices**:
+- ✅ Samsung Galaxy S8 / S9 / S10, Note series, A series (Android 7–10)
+- ✅ Google Pixel 6, 7, 8, 9 (Android 12–15)
+- ✅ All Android 7.0+ (API 24+)
+
+The app automatically handles the difference between old and new Android:
+- **Old devices (Android 7–9):** requests storage permission so files save correctly.
+- **New devices (Android 10+):** uses scoped storage / legacy external storage so files land in DCIM.
+
+## ⚠️ DRM — read this (important, honest)
+**DRM-protected apps (Netflix, Prime Video, Disney+, HBO Max, etc.) CANNOT be recorded.** Android uses Widevine DRM (L1/L3) which blanks the screen-capture frames at the **hardware / trusted-execution level**. No screen recorder can bypass this — it's enforced by the OS and the device hardware, and circumventing it is also illegal.
+
+What this app DOES support:
+- ✅ **Non-DRM streaming** — Twitch, YouTube (web/mobile, non-DRM), Vimeo, self-hosted streams, your own content, games, apps, calls, everything else.
+- ✅ A **"Record streaming video (non-DRM)"** toggle in Settings to manage stream capture.
+- ✅ If you try to record a DRM app, the video will come out blank/black — that's the OS enforcing protection, not a bug.
+
+We will not add or support DRM circumvention — it's technically blocked and against the law.
+
+## Made by
+**jnetai.com** — part of the J~Net app suite.
+
+## GitHub
+Public repo: **https://github.com/jnetai-clawbot/Android-Screen-Recorder**
+Latest release (APK download): **https://github.com/jnetai-clawbot/Android-Screen-Recorder/releases/latest**
+
+## How to use
+1. Install the APK, open the app.
+2. Grant required permissions:
+   - **Overlay** (Settings → bubble) — needed for the floating bubble
+   - **Microphone** — needed to record sound
+   - **Storage** (old devices only) — needed to save files
+   - **Screen capture** — asked the first time you start a recording
+3. Tap **"Show quick-access bubble"**.
+4. Tap the bubble to expand it → shows buttons: **Record / Stop / Screenshot / Settings / Close**.
+5. Record → red button. Stop → stop button. Screenshot → camera button.
+6. Files are saved to:
+   - Recordings: `DCIM/ScreenRecorder/Recordings/`
+   - Screenshots: `DCIM/ScreenRecorder/Screenshots/`
+
+## Settings (gear in bubble, or Settings screen)
+- **Save location** — default `DCIM/ScreenRecorder`
+- **Record audio with video** — toggle mic capture
+- **Show screenshot button** — toggle screenshot option visibility
+- **Record streaming video (non-DRM)** — manage stream capture
+- **Resolution** — 720p / 1080p / 1440p / screen
+- **Frame rate** — 24 / 30 / 60 fps
+- **About** — made by jnetai.com, **Check for update** (links to latest GitHub release), **Share app**
+- **DRM note** — explains why Netflix/Prime can't be recorded
+
+## Build (GitHub Actions)
+Push to `main` → CI builds APK automatically.
+Manual trigger: Actions tab → "Build Screen Recorder APK" → Run workflow.
+
+For a signed release, add repo secrets:
+- `KEYSTORE_BASE64` — base64 of your `.jks` keystore
+- `KEYSTORE_PASSWORD` — store + key password
+- `KEY_ALIAS` — key alias
+
+APK output: `app/build/outputs/apk/debug/Screen-Recorder.apk`
+
+## Local build
+```bash
+./gradlew assembleDebug
+```
+Output: `app/build/outputs/apk/debug/app-debug.apk`
+
+## Requirements
+- Android 7.0+ (API 24+)

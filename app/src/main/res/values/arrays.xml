@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="resolutions">
+        <item>720p</item>
+        <item>1080p</item>
+        <item>1440p</item>
+        <item>Screen resolution</item>
+    </string-array>
+    <string-array name="resolution_values">
+        <item>720p</item>
+        <item>1080p</item>
+        <item>1440p</item>
+        <item>screen</item>
+    </string-array>
+    <string-array name="fps_options">
+        <item>24 fps</item>
+        <item>30 fps</item>
+        <item>60 fps</item>
+    </string-array>
+    <string-array name="fps_values">
+        <item>24</item>
+        <item>30</item>
+        <item>60</item>
+    </string-array>
+</resources>

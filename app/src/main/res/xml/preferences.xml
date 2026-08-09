@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="Storage">
+
+        <EditTextPreference
+            android:key="storage_location"
+            android:title="Save location"
+            android:summary="DCIM/ScreenRecorder (default)"
+            android:dialogTitle="Storage folder"
+            android:dialogMessage="Folder under DCIM for recordings &amp; screenshots"
+            android:defaultValue="DCIM/ScreenRecorder" />
+
+        <SwitchPreference
+            android:key="record_audio"
+            android:title="Record audio with video"
+            android:summary="Capture microphone sound along with the screen"
+            android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="show_screenshot_button"
+            android:title="Show screenshot button"
+            android:summary="Toggle the screenshot capture option in the bubble"
+            android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="record_streams"
+            android:title="Record streaming video (non-DRM)"
+            android:summary="Enables capture of non-protected streams (Twitch, YouTube web, self-hosted)"
+            android:defaultValue="true" />
+
+        <Preference
+            android:key="drm_note"
+            android:title="About DRM-protected content"
+            android:summary="Netflix, Prime Video, Disney+ and other DRM apps cannot be recorded — the OS blocks capture at the hardware level." />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Recording quality">
+
+        <ListPreference
+            android:key="video_resolution"
+            android:title="Resolution"
+            android:summary="Screen resolution"
+            android:entries="@array/resolutions"
+            android:entryValues="@array/resolution_values"
+            android:defaultValue="1080p" />
+
+        <ListPreference
+            android:key="video_fps"
+            android:title="Frame rate"
+            android:summary="Frames per second"
+            android:entries="@array/fps_options"
+            android:entryValues="@array/fps_values"
+            android:defaultValue="30" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="About">
+
+        <Preference
+            android:key="about"
+            android:title="About J~Net Screen Recorder"
+            android:summary="Made by jnetai.com" />
+
+        <Preference
+            android:key="check_update"
+            android:title="Check for update"
+            android:summary="Check the latest GitHub release" />
+
+        <Preference
+            android:key="share"
+            android:title="Share app"
+            android:summary="Share a link to the latest release" />
+
+    </PreferenceCategory>
+</PreferenceScreen>
