@@ -171,25 +171,20 @@ public class RecorderService extends Service {
      * dir only if MediaStore is unavailable.
      */
     private File createOutputFile(String name) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            try {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Video.Media.DISPLAY_NAME, name);
-                values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
-                values.put(MediaStore.Video.Media.RELATIVE_PATH,
-                        Environment.DIRECTORY_DCIM + "/ScreenRecorder/Recordings");
-                Uri uri = getContentResolver().insert(
-                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
-                if (uri != null) {
-                    // Store the URI so we can delete/scan it later; return a File
-                    // pointing at the same path for MediaRecorder.
-                    String path = uri.getPath();
-                    mOutputUri = uri;
-                    return new File(path);
-                }
-            } catch (Exception e) {
-                com.jnet.screenrecorder.ErrorLog.e("MediaStore create failed, using fallback", e);
+        // MediaRecorder needs a REAL filesystem path (not a MediaStore URI path).
+        // Use the visible public DCIM/ScreenRecorder/Recordings folder. On Android 10
+        // with requestLegacyExternalStorage=true (set in the manifest) this raw path
+        // is writable, and the file is visible in Gallery / File Manager.
+        try {
+            File base = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DCIM);
+            File dir = new File(base, "ScreenRecorder/Recordings");
+            if (!dir.exists()) dir.mkdirs();
+            if (dir.exists()) {
+                return new File(dir, name);
             }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Public DCIM dir unavailable, using fallback", e);
         }
         // Fallback: app-private external dir (always writable)
         File dir = getRecordingsDir();

@@ -33,8 +33,8 @@ android {
         // minSdk 26 = Android 8.0 (Samsung S8 ships with this) — covers old + new devices
         minSdk 26
         targetSdk 34
-        versionCode 120
-        versionName '1.4.1'
+        versionCode 121
+        versionName '1.4.2'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
