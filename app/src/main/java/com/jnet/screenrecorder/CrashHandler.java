@@ -125,10 +125,8 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
                     builder.setNegativeButton("Close", (d, w) -> {});
                     builder.setCancelable(false);
                     AlertDialog dialog = builder.create();
-                    dialog.getWindow().setType(
-                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                                    ? android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                                    : android.view.WindowManager.LayoutParams.TYPE_PHONE);
+                    // Use a normal dialog window type — NOT overlay, which requires
+                    // overlay permission and crashes on first open before it's granted.
                     dialog.show();
                 } catch (Exception e) {
                     Log.e(TAG, "Could not show crash dialog", e);
