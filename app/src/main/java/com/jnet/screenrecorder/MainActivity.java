@@ -171,39 +171,40 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         updateOverlayStatus();
         updateAudioStatus();
-        maybeAutoShowBubble();
-    }
-
-    /**
-     * If overlay permission is granted and "Show bubble on app open" is enabled,
-     * automatically show the bubble when the app starts (if it isn't already up).
-     */
-    private void maybeAutoShowBubble() {
-        if (!Settings.canDrawOverlays(this)) {
-            return;
-        }
-        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
-        if (!prefs.getBoolean("bubble_auto_show", true)) {
-            return;
-        }
-        if (!BubbleService.isRunning()) {
-            startBubbleService();
-        }
+        // NOTE: bubble is NOT auto-started on resume — overlay mode is off by
+        // default and the user must enable it in Settings. This prevents the
+        // crash that happened when the bubble service auto-started.
     }
 
     private void toggleBubble() {
-        boolean running = BubbleService.isRunning();
-        Intent intent = new Intent(this, BubbleService.class);
-        if (running) {
-            stopService(intent);
-            Toast.makeText(this, "Bubble hidden", Toast.LENGTH_SHORT).show();
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent);
-            } else {
-                startService(intent);
+        // Crash-proof: only start the bubble if overlay permission is actually granted,
+        // and wrap the whole thing in try/catch so any overlay issue can never crash the app.
+        try {
+            if (!Settings.canDrawOverlays(this)) {
+                Toast.makeText(this, "Enable overlay permission first", Toast.LENGTH_SHORT).show();
+                startActivityForResult(
+                        new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName())),
+                        REQUEST_OVERLAY);
+                return;
             }
-            Toast.makeText(this, "Bubble shown — tap it to record", Toast.LENGTH_SHORT).show();
+
+            boolean running = BubbleService.isRunning();
+            Intent intent = new Intent(this, BubbleService.class);
+            if (running) {
+                stopService(intent);
+                Toast.makeText(this, "Bubble hidden", Toast.LENGTH_SHORT).show();
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent);
+                } else {
+                    startService(intent);
+                }
+                Toast.makeText(this, "Bubble shown — drag it or tap to expand", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            // Fallback: never crash on overlay issues. Recording still works via notification.
+            Toast.makeText(this, "Overlay unavailable — use the notification to record", Toast.LENGTH_LONG).show();
         }
         updateOverlayStatus();
     }
@@ -277,12 +278,8 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_OVERLAY) {
             if (Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show();
-                // Auto-show the bubble as soon as overlay permission is granted.
-                // Delay slightly so the activity is fully foregrounded before
-                // starting the foreground service (avoids ForegroundServiceStartNotAllowedException).
-                if (!BubbleService.isRunning()) {
-                    new android.os.Handler(getMainLooper()).postDelayed(this::startBubbleService, 500);
-                }
+                // Do NOT auto-start the bubble here — that caused the crash.
+                // The bubble only shows if the user enables overlay mode in Settings.
             }
             updateOverlayStatus();
         }

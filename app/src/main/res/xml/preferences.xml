@@ -32,6 +32,12 @@
 
     <PreferenceCategory android:title="Quick-access bubble">
 
+        <SwitchPreference
+            android:key="overlay_mode"
+            android:title="Overlay bubble mode"
+            android:summary="OFF by default. Turn ON to show the floating bubble. Recording is controlled via the notification bar either way."
+            android:defaultValue="false" />
+
         <ListPreference
             android:key="bubble_size"
             android:title="Bubble size"
@@ -47,12 +53,6 @@
             android:entries="@array/bubble_colours"
             android:entryValues="@array/bubble_colour_values"
             android:defaultValue="0xE61565C0" />
-
-        <SwitchPreference
-            android:key="bubble_auto_show"
-            android:title="Show bubble on app open"
-            android:summary="Automatically show the bubble when the app starts (if overlay granted)"
-            android:defaultValue="true" />
 
     </PreferenceCategory>
 
