@@ -33,14 +33,14 @@ public final class StorageUtil {
 
     /** Returns the Recordings folder, creating it (and parents) if missing. */
     public static File getRecordingsDir(Context context) {
-        File dir = new File(getBaseDir(context), "Recordings");
-        if (!dir.exists() && !dir.mkdirs()) {
-            // Fall back to the app's private external dir, which is always writable
-            // without any storage permission (scoped-storage safe on Android 10+).
-            File fallback = new File(context.getExternalFilesDir(null), "Recordings");
-            if (!fallback.exists()) fallback.mkdirs();
-            return fallback;
-        }
+        // ALWAYS record into the app's private external dir. On Android 10 scoped
+        // storage, writing to the raw public DCIM path throws EACCES even with
+        // storage permission granted (legacy storage flag not honored on updated
+        // installs). The private dir is always writable with no permission needed.
+        // The finished file is moved to the visible DCIM folder via MediaStore
+        // when recording stops (see RecorderService.moveToVisibleLocation).
+        File dir = new File(context.getExternalFilesDir(null), "Recordings");
+        if (!dir.exists()) dir.mkdirs();
         return dir;
     }
 
