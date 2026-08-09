@@ -16,6 +16,12 @@ public final class ThemeUtil {
      * Reads the "theme_mode" preference and sets the theme accordingly.
      */
     public static void apply(Activity activity) {
+        // The Settings screen is always dark with light-green text by default.
+        if (activity instanceof com.jnet.screenrecorder.settings.SettingsActivity) {
+            activity.setTheme(R.style.Theme_ScreenRecorder_Dark);
+            return;
+        }
+
         SharedPreferences prefs = activity.getSharedPreferences("screenrecorder", Activity.MODE_PRIVATE);
         String mode = prefs.getString("theme_mode", "system");
 

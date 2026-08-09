@@ -132,7 +132,9 @@ public class MainActivity extends AppCompatActivity {
             needed.add(Manifest.permission.RECORD_AUDIO);
         }
 
-        // Storage write — only old devices (Android 7-9, e.g. Samsung S8)
+        // Storage — required to create the save folders & store recordings.
+        // On Android 10+ we use scoped storage (no runtime permission), but on
+        // older devices (S8 / API 24-28) we MUST request WRITE_EXTERNAL_STORAGE.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -148,30 +150,20 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Storage — needed to create the save folders (DCIM/ScreenRecorder).
-        // On Android 10+ we use scoped storage (no permission), but on older
-        // devices (S8 / API 24-28) we need WRITE_EXTERNAL_STORAGE to create dirs.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            }
-        }
-
         if (needed.isEmpty()) {
-            // No runtime permissions needed — just create the folders.
+            // All granted — just create the folders.
             createStorageFolders();
             return;
         }
 
         new AlertDialog.Builder(this)
                 .setTitle("Permissions")
-                .setMessage("J~Net Screen Recorder needs a few permissions:\n\n" +
-                        "🎙 Microphone — to record audio with your screen\n" +
-                        "📁 Storage — to create the save folders & store recordings\n" +
+                .setMessage("J~Net Screen Recorder needs your permission to save recordings.\n\n" +
+                        "🎙 Microphone — to record audio\n" +
+                        "📁 Storage — REQUIRED to create the save folders & store recordings\n" +
                         "🔔 Notifications — to show recording status\n\n" +
-                        "You'll only be asked this once.\n" +
-                        "Screen capture is asked separately when you start recording.")
+                        "If you deny storage, the app cannot create its folders and won't be able to save.\n" +
+                        "You'll only be asked this once. Screen capture is asked when you start recording.")
                 .setPositiveButton("Grant all", (d, w) -> {
                     requestPermissions(needed.toArray(new String[0]), 3001);
                     createStorageFolders();

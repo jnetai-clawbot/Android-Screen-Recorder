@@ -3,16 +3,20 @@ package com.jnet.screenrecorder.settings;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.jnet.screenrecorder.R;
+import com.jnet.screenrecorder.StorageUtil;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -47,6 +51,27 @@ public class SettingsActivity extends AppCompatActivity {
     public static class SettingsFragment extends PreferenceFragment
             implements SharedPreferences.OnSharedPreferenceChangeListener {
 
+        // Folder picker launcher for selecting the storage save location
+        private final ActivityResultLauncher<Uri> folderPicker = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                uri -> {
+                    if (uri == null) return;
+                    try {
+                        // Take persistable permission so we can keep writing to the folder
+                        getActivity().getContentResolver().takePersistableUriPermission(
+                                uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                        // Store the picked folder URI
+                        getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                .edit().putString("storage_location_uri", uri.toString()).apply();
+                        Toast.makeText(getActivity(), "Save folder selected", Toast.LENGTH_SHORT).show();
+                        updateStorageSummary();
+                    } catch (Exception e) {
+                        Toast.makeText(getActivity(), "Could not use that folder", Toast.LENGTH_LONG).show();
+                    }
+                });
+
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
@@ -73,13 +98,43 @@ public class SettingsActivity extends AppCompatActivity {
                 return true;
             });
 
+            // Folder browser: pick the save location instead of typing a path
+            findPreference("storage_location").setOnPreferenceClickListener(pref -> {
+                launchFolderPicker();
+                return true;
+            });
+
             findPreference("create_dirs").setOnPreferenceClickListener(pref -> {
-                boolean ok = com.jnet.screenrecorder.StorageUtil.ensureFolders(getActivity());
+                boolean ok = StorageUtil.ensureFolders(getActivity());
                 Toast.makeText(getActivity(),
                         ok ? "Storage folders ready" : "Could not create folders — check storage permission",
                         Toast.LENGTH_LONG).show();
                 return true;
             });
+
+            updateStorageSummary();
+        }
+
+        private void launchFolderPicker() {
+            try {
+                folderPicker.launch(null);
+            } catch (Exception e) {
+                Toast.makeText(getActivity(), "Folder picker unavailable", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        private void updateStorageSummary() {
+            try {
+                SharedPreferences prefs = getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE);
+                String uri = prefs.getString("storage_location_uri", "");
+                Preference loc = findPreference("storage_location");
+                if (loc != null) {
+                    loc.setSummary(uri != null && !uri.isEmpty()
+                            ? uri
+                            : StorageUtil.DEFAULT_PATH + " (tap to browse)");
+                }
+            } catch (Exception ignored) {
+            }
         }
 
         private void openUrl(String url) {
@@ -112,7 +167,6 @@ public class SettingsActivity extends AppCompatActivity {
             if ("bubble_size".equals(key) || "bubble_colour".equals(key)) {
                 // Refresh the live bubble if it's running
                 if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
-                    // Send an intent to the running service to re-read settings
                     Intent i = new Intent(getActivity(),
                             com.jnet.screenrecorder.overlay.BubbleService.class)
                             .setAction("com.jnet.screenrecorder.REFRESH_BUBBLE");

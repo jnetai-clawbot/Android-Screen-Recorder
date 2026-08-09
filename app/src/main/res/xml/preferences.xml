@@ -3,13 +3,10 @@
 
     <PreferenceCategory android:title="Storage">
 
-        <EditTextPreference
+        <Preference
             android:key="storage_location"
             android:title="Save location"
-            android:summary="/storage/emulated/0/DCIM/ScreenRecorder (default)"
-            android:dialogTitle="Storage folder"
-            android:dialogMessage="Absolute path where recordings &amp; screenshots are saved"
-            android:defaultValue="/storage/emulated/0/DCIM/ScreenRecorder" />
+            android:summary="/storage/emulated/0/DCIM/ScreenRecorder (tap to browse)" />
 
         <Preference
             android:key="create_dirs"
