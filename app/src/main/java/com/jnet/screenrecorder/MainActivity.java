@@ -75,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Install the global crash handler so we can capture & copy the real error
+        CrashHandler.install(this);
         ThemeUtil.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
