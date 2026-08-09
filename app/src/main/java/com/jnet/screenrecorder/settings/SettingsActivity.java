@@ -181,12 +181,31 @@ public class SettingsActivity extends AppCompatActivity {
                 String uri = prefs.getString("storage_location_uri", "");
                 Preference loc = findPreference("storage_location");
                 if (loc != null) {
-                    loc.setSummary(uri != null && !uri.isEmpty()
-                            ? uri
-                            : StorageUtil.DEFAULT_PATH + " (tap to browse)");
+                    if (uri != null && !uri.isEmpty()) {
+                        // Show a friendly folder name instead of the raw content:// URI
+                        loc.setSummary("Selected: " + friendlyName(uri) + " (tap to change)");
+                    } else {
+                        loc.setSummary(StorageUtil.DEFAULT_PATH + " (tap to browse)");
+                    }
                 }
             } catch (Exception ignored) {
             }
+        }
+
+        /** Converts a content:// URI like .../tree/primary%3ADCIM%2FScreen-Recordings into "DCIM/Screen-Recordings". */
+        private String friendlyName(String uriString) {
+            try {
+                android.net.Uri u = android.net.Uri.parse(uriString);
+                String last = u.getLastPathSegment();
+                if (last != null) {
+                    String decoded = java.net.URLDecoder.decode(last, "UTF-8");
+                    // Strip the "tree/primary:" prefix if present
+                    if (decoded.startsWith("primary:")) decoded = decoded.substring("primary:".length());
+                    return decoded;
+                }
+            } catch (Exception ignored) {
+            }
+            return uriString;
         }
 
         private void openUrl(String url) {

@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.3.2 (2026-08-09)
+- **Storage location now shows a friendly folder name** (e.g. "DCIM/Screen-Recordings") instead of the raw `content://...` URI in Settings.
+
 ### v1.3.1 (2026-08-09)
 - **FIXED bubble completely unresponsive to touch (drag/tap)**: there were two touch listeners fighting — one on the ImageButton (opacity) and one on the FrameLayout (drag/expand). The ImageButton was consuming all touch events before they reached the FrameLayout, so drag and tap-to-expand never fired. Removed the opacity listener from the button and made it non-clickable/non-focusable so the FrameLayout receives all touches.
 
