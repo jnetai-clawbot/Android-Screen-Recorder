@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.2.7 (2026-08-09)
+- **FIXED crash when enabling bubble mode**: the bubble service was adding the overlay window (`addView`) BEFORE calling `startForeground()`. On Android 14+ this can crash the service (ForegroundServiceTypeException / BadTokenException). Now `startForeground()` is called first, then the bubble is created.
+
 ### v1.2.6 (2026-08-09)
 - **FIXED bubble not appearing on Android 14+**: the bubble foreground service was declared as `specialUse` type but the manifest was missing the `FOREGROUND_SERVICE_SPECIAL_USE` permission. On Android 14+ this throws a SecurityException, so the bubble service crashed instantly — no bubble and no bubble notification. Added the missing permission.
 

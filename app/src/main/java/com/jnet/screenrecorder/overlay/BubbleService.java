@@ -134,8 +134,12 @@ public class BubbleService extends Service {
         mWindowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         createNotificationChannel();
-        createBubble();
+        // IMPORTANT: call startForeground() BEFORE adding any overlay views.
+        // On Android 14+ a foreground service must be foregrounded promptly after
+        // startForegroundService(); adding overlay windows first can crash the
+        // service (ForegroundServiceTypeException / BadTokenException).
         startForegroundCompat(NOTIF_ID, buildNotification());
+        createBubble();
     }
 
     private void startForegroundCompat(int id, Notification notification) {
