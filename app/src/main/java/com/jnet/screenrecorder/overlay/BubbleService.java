@@ -237,6 +237,7 @@ public class BubbleService extends Service {
         try {
             mWindowManager.addView(mBubbleView, params);
         } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Overlay permission missing / addView failed", e);
             Log.e(TAG, "Overlay permission missing", e);
             Toast.makeText(this, "Enable overlay permission", Toast.LENGTH_LONG).show();
             stopSelf();
@@ -316,6 +317,7 @@ public class BubbleService extends Service {
                 mWindowManager.addView(mExpandedView, expandedParams);
                 mExpanded = true;
             } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Failed to expand bubble", e);
                 Log.e(TAG, "Failed to expand", e);
             }
         }
@@ -350,6 +352,7 @@ public class BubbleService extends Service {
                         RecorderService.getProjectionResultCode(),
                         RecorderService.getProjectionData());
             } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Screenshot projection error", e);
                 Log.e(TAG, "Screenshot projection error", e);
                 Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show();
                 return;
@@ -393,6 +396,7 @@ public class BubbleService extends Service {
                     saveScreenshot(cropped);
                 }
             } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Screenshot capture failed", e);
                 Log.e(TAG, "Screenshot failed", e);
             } finally {
                 if (image != null) image.close();
@@ -461,6 +465,7 @@ public class BubbleService extends Service {
 
             mWindowManager.addView(mScreenshotBubble, sp);
         } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not show screenshot bubble", e);
             Log.e(TAG, "Could not show screenshot bubble", e);
         }
     }
@@ -477,6 +482,7 @@ public class BubbleService extends Service {
             sendBroadcast(mediaScanIntent);
             Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
+            com.jnet.screenrecorder.ErrorLog.e("Save screenshot failed", e);
             Log.e(TAG, "Save screenshot failed", e);
             Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show();
         }

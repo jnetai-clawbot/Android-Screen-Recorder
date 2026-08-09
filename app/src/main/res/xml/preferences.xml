@@ -20,10 +20,10 @@
         <ListPreference
             android:key="theme_mode"
             android:title="Theme"
-            android:summary="Dark mode / light mode / follow system"
+            android:summary="Dark (default, light-green text) / light / follow system"
             android:entries="@array/theme_options"
             android:entryValues="@array/theme_values"
-            android:defaultValue="system" />
+            android:defaultValue="dark" />
 
     </PreferenceCategory>
 
@@ -141,6 +141,25 @@
             android:key="drm_note"
             android:title="About DRM-protected content"
             android:summary="Netflix, Prime Video, Disney+ and other DRM apps cannot be recorded — the OS blocks capture at the hardware level." />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Diagnostics">
+
+        <Preference
+            android:key="view_error_log"
+            android:title="View error log"
+            android:summary="See errors &amp; crashes for this app. Copy them to clipboard to send to the developer." />
+
+        <Preference
+            android:key="copy_error_log"
+            android:title="Copy error log to clipboard"
+            android:summary="Copy the full error log so you can paste it to the developer." />
+
+        <Preference
+            android:key="clear_error_log"
+            android:title="Clear error log"
+            android:summary="Remove all saved errors and log entries." />
 
     </PreferenceCategory>
 

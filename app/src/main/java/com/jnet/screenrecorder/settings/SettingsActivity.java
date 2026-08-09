@@ -90,7 +90,54 @@ public class SettingsActivity extends AppCompatActivity {
                 return true;
             });
 
+            // --- Diagnostics / error log ---
+            findPreference("view_error_log").setOnPreferenceClickListener(pref -> {
+                showErrorLogDialog();
+                return true;
+            });
+            findPreference("copy_error_log").setOnPreferenceClickListener(pref -> {
+                String log = com.jnet.screenrecorder.ErrorLog.readLog(getActivity());
+                copyToClipboard(log);
+                Toast.makeText(getActivity(), "Error log copied to clipboard", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+            findPreference("clear_error_log").setOnPreferenceClickListener(pref -> {
+                com.jnet.screenrecorder.ErrorLog.clearLog(getActivity());
+                Toast.makeText(getActivity(), "Error log cleared", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+
             updateStorageSummary();
+        }
+
+        /** Shows the error log in a dialog with a Copy-to-clipboard button. */
+        private void showErrorLogDialog() {
+            try {
+                String log = com.jnet.screenrecorder.ErrorLog.readLog(getActivity());
+                new androidx.appcompat.app.AlertDialog.Builder(getActivity())
+                        .setTitle("Error log")
+                        .setMessage(log)
+                        .setPositiveButton("Copy to clipboard", (d, w) -> {
+                            copyToClipboard(log);
+                            Toast.makeText(getActivity(), "Error log copied to clipboard", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Close", null)
+                        .show();
+            } catch (Exception e) {
+                Toast.makeText(getActivity(), "Could not open error log", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        private void copyToClipboard(String text) {
+            try {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                        getActivity().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("screenrecorder_error_log", text));
+                }
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("copy to clipboard failed", e);
+            }
         }
 
         private void launchFolderPicker() {
@@ -176,6 +223,45 @@ public class SettingsActivity extends AppCompatActivity {
                             com.jnet.screenrecorder.overlay.BubbleService.class)
                             .setAction("com.jnet.screenrecorder.REFRESH_BUBBLE");
                     getActivity().startService(i);
+                }
+            }
+            if ("overlay_mode".equals(key)) {
+                // Toggling overlay mode ON should show the floating bubble immediately;
+                // toggling OFF should hide it. This is the AZ-style quick-access bubble.
+                boolean overlayOn = sharedPreferences.getBoolean("overlay_mode", false);
+                try {
+                    boolean granted = android.provider.Settings.canDrawOverlays(getActivity());
+                    if (overlayOn && granted) {
+                        if (!com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+                            Intent i = new Intent(getActivity(),
+                                    com.jnet.screenrecorder.overlay.BubbleService.class);
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                getActivity().startForegroundService(i);
+                            } else {
+                                getActivity().startService(i);
+                            }
+                            Toast.makeText(getActivity(), "Bubble shown — drag it or tap to expand",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } else if (!overlayOn) {
+                        getActivity().stopService(new Intent(getActivity(),
+                                com.jnet.screenrecorder.overlay.BubbleService.class));
+                    } else {
+                        // overlayOn but not granted overlay permission
+                        Toast.makeText(getActivity(),
+                                "Enable overlay permission first (Settings -> Overlay)",
+                                Toast.LENGTH_LONG).show();
+                        // Ask to grant overlay permission
+                        try {
+                            Intent grant = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:" + getActivity().getPackageName()));
+                            getActivity().startActivity(grant);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                } catch (Exception e) {
+                    com.jnet.screenrecorder.ErrorLog.e("overlay_mode toggle error", e);
+                    Toast.makeText(getActivity(), "Could not toggle bubble", Toast.LENGTH_SHORT).show();
                 }
             }
         }

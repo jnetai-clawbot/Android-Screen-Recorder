@@ -42,6 +42,8 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     /** Installs this handler as the global uncaught-exception handler. */
     public static void install(Context context) {
+        // Initialise the shared error log (Settings -> Diagnostics reads this file)
+        ErrorLog.init(context);
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(context));
     }
 

@@ -142,6 +142,7 @@ public class RecorderService extends Service {
                 setMediaProjection(resultCode, data);
                 startRecording();
             } else {
+                com.jnet.screenrecorder.ErrorLog.e("Start recording: screen capture permission not granted");
                 Toast.makeText(this, "Screen capture permission not granted", Toast.LENGTH_LONG).show();
             }
         }
@@ -157,6 +158,7 @@ public class RecorderService extends Service {
         try {
             mMediaProjection = mProjectionManager.getMediaProjection(sResultCode, sResultData);
         } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Failed to get media projection", e);
             Log.e(TAG, "Failed to get media projection", e);
             Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show();
             return;
@@ -207,6 +209,7 @@ public class RecorderService extends Service {
         try {
             mMediaRecorder.prepare();
         } catch (IOException e) {
+            com.jnet.screenrecorder.ErrorLog.e("MediaRecorder prepare failed", e);
             Log.e(TAG, "MediaRecorder prepare failed", e);
             mMediaRecorder.release();
             mMediaProjection.stop();
@@ -280,6 +283,7 @@ public class RecorderService extends Service {
             };
             mTimeHandler.post(mTimeUpdater);
         } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not show time bar", e);
             Log.e(TAG, "Could not show time bar", e);
         }
     }
@@ -370,6 +374,7 @@ public class RecorderService extends Service {
                 mMediaRecorder = null;
             }
         } catch (RuntimeException e) {
+            com.jnet.screenrecorder.ErrorLog.e("Recorder stop error", e);
             Log.e(TAG, "Recorder stop error", e);
             if (mOutputFile != null && mOutputFile.exists()) {
                 mOutputFile.delete();
@@ -446,6 +451,7 @@ public class RecorderService extends Service {
                     saveScreenshot(cropped);
                 }
             } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Screenshot failed", e);
                 Log.e(TAG, "Screenshot failed", e);
             } finally {
                 if (image != null) image.close();
@@ -470,6 +476,7 @@ public class RecorderService extends Service {
             scanFile(file);
             Toast.makeText(this, "Screenshot saved: " + file.getName(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
+            com.jnet.screenrecorder.ErrorLog.e("Save screenshot failed", e);
             Log.e(TAG, "Save screenshot failed", e);
             Toast.makeText(this, "Failed to save screenshot", Toast.LENGTH_SHORT).show();
         }

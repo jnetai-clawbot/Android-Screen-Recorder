@@ -52,9 +52,13 @@
         <service
             android:name=".overlay.BubbleService"
             android:exported="false"
-            android:foregroundServiceType="mediaProjection"
+            android:foregroundServiceType="specialUse"
             android:label="@string/bubble_service_label"
-            tools:targetApi="29" />
+            tools:targetApi="29">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="floating_screen_recorder_bubble" />
+        </service>
 
         <service
             android:name=".recorder.RecorderService"

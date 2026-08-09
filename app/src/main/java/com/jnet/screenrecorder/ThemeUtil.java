@@ -14,6 +14,9 @@ public final class ThemeUtil {
     /**
      * Call before super.onCreate()/setContentView() in each activity.
      * Reads the "theme_mode" preference and sets the theme accordingly.
+     *
+     * The default is dark with light-green text (like the Settings screen),
+     * so the app launches in dark mode on first run.
      */
     public static void apply(Activity activity) {
         // The Settings screen is always dark with light-green text by default.
@@ -23,19 +26,18 @@ public final class ThemeUtil {
         }
 
         SharedPreferences prefs = activity.getSharedPreferences("screenrecorder", Activity.MODE_PRIVATE);
-        String mode = prefs.getString("theme_mode", "system");
+        String mode = prefs.getString("theme_mode", "dark"); // default: dark with light-green text
 
         switch (mode) {
-            case "dark":
-                activity.setTheme(R.style.Theme_ScreenRecorder_Dark);
-                break;
             case "light":
                 activity.setTheme(R.style.Theme_ScreenRecorder);
                 break;
+            case "dark":
             case "system":
             default:
-                // DayNight theme follows the system automatically
-                activity.setTheme(R.style.Theme_ScreenRecorder);
+                // Default (and on first launch) is the dark theme with light-green text,
+                // matching the Settings page. "system" keeps dark unless user picks light.
+                activity.setTheme(R.style.Theme_ScreenRecorder_Dark);
                 break;
         }
     }
