@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.11 (2026-08-10)
+- **FIXED v1.4.10 build failure**: `MediaProjection.setSecure()` is not a public API, so the build failed to compile. Switched to reflection to attempt disabling the secure flag for DRM capture (Clapper / own-content experiments). On most devices Widevine L1/L3 still records blank, but it's worth trying.
+
 ### v1.4.10 (2026-08-10)
 - **New "Record DRM-protected content (experimental)" toggle** in Settings → Capture & overlay. When enabled, the app calls `MediaProjection.setSecure(false)` to attempt capturing protected surfaces (for Clapper / own-content experiments, not Netflix/copyright media). On most devices Widevine L1/L3 still records blank, but it's worth trying.
 
