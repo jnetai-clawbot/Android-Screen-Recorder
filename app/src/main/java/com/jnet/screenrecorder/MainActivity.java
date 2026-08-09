@@ -2,7 +2,9 @@ package com.jnet.screenrecorder;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
@@ -102,8 +104,63 @@ public class MainActivity extends AppCompatActivity {
         btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
 
+        // One-time permission onboarding: prompt for everything the app needs ONCE
+        requestAllPermissionsIfFirstRun();
         // Old devices (Android 7-9) need runtime storage permission to save files
         requestLegacyStorageIfNeeded();
+    }
+
+    /**
+     * Prompts for ALL required permissions at once, only on first launch.
+     * The user accepts once (or denies) — we don't nag on every recording.
+     */
+    private void requestAllPermissionsIfFirstRun() {
+        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
+        if (prefs.getBoolean("permissions_asked", false)) {
+            return; // already asked once
+        }
+        prefs.edit().putBoolean("permissions_asked", true).apply();
+
+        java.util.List<String> needed = new java.util.ArrayList<>();
+
+        // Microphone — always required for audio recording
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.RECORD_AUDIO);
+        }
+
+        // Storage write — only old devices (Android 7-9, e.g. Samsung S8)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+        }
+
+        // Notifications — Android 13+ requires runtime permission for recording notifications
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                needed.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+
+        if (needed.isEmpty()) {
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Permissions")
+                .setMessage("J~Net Screen Recorder needs a few permissions:\n\n" +
+                        "🎙 Microphone — to record audio with your screen\n" +
+                        "📁 Storage — to save recordings & screenshots (old devices)\n" +
+                        "🔔 Notifications — to show recording status\n\n" +
+                        "You'll only be asked this once.\n" +
+                        "Screen capture is asked separately when you start recording.")
+                .setPositiveButton("Grant all", (d, w) ->
+                        requestPermissions(needed.toArray(new String[0]), 3001))
+                .setNegativeButton("Later", null)
+                .show();
     }
 
     @Override

@@ -22,4 +22,28 @@
         <item>30</item>
         <item>60</item>
     </string-array>
+    <string-array name="audio_bitrates">
+        <item>96 kbps (small)</item>
+        <item>128 kbps (standard)</item>
+        <item>192 kbps (high)</item>
+        <item>256 kbps (best)</item>
+    </string-array>
+    <string-array name="audio_bitrate_values">
+        <item>96000</item>
+        <item>128000</item>
+        <item>192000</item>
+        <item>256000</item>
+    </string-array>
+    <string-array name="video_bitrates">
+        <item>4 Mbps (small)</item>
+        <item>8 Mbps (standard)</item>
+        <item>12 Mbps (high)</item>
+        <item>16 Mbps (best)</item>
+    </string-array>
+    <string-array name="video_bitrate_values">
+        <item>4000000</item>
+        <item>8000000</item>
+        <item>12000000</item>
+        <item>16000000</item>
+    </string-array>
 </resources>

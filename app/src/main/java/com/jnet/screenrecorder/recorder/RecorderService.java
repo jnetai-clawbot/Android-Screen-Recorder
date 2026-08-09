@@ -39,6 +39,7 @@ import com.jnet.screenrecorder.R;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -152,21 +153,33 @@ public class RecorderService extends Service {
 
         mMediaRecorder = new MediaRecorder();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        SharedPreferences prefs = getSharedPreferences("screenrecorder", MODE_PRIVATE);
+        boolean recordAudio = prefs.getBoolean("record_audio", true);
+
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        if (recordAudio) {
             mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        } else {
-            mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
         }
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        if (recordAudio) {
+            mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        }
         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mMediaRecorder.setVideoEncodingBitRate(8 * 1024 * 1024);
-        mMediaRecorder.setVideoFrameRate(30);
+
+        // Video quality settings
+        mMediaRecorder.setVideoEncodingBitRate(
+                Integer.parseInt(prefs.getString("video_bitrate", "8000000")));
+        mMediaRecorder.setVideoFrameRate(
+                Integer.parseInt(prefs.getString("video_fps", "30")));
         mMediaRecorder.setVideoSize(width, height);
-        mMediaRecorder.setAudioEncodingBitRate(128000);
-        mMediaRecorder.setAudioSamplingRate(44100);
+
+        // Audio quality settings
+        if (recordAudio) {
+            mMediaRecorder.setAudioEncodingBitRate(
+                    Integer.parseInt(prefs.getString("audio_bitrate", "128000")));
+            mMediaRecorder.setAudioSamplingRate(44100);
+        }
+
         mMediaRecorder.setOutputFile(mOutputFile.getAbsolutePath());
 
         try {

@@ -11,11 +11,79 @@
             android:dialogMessage="Folder under DCIM for recordings &amp; screenshots"
             android:defaultValue="DCIM/ScreenRecorder" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Audio">
+
         <SwitchPreference
             android:key="record_audio"
-            android:title="Record audio with video"
-            android:summary="Capture microphone sound along with the screen"
+            android:title="Record audio"
+            android:summary="Capture sound with the video"
             android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="record_mic"
+            android:title="Record microphone"
+            android:summary="Capture your voice via the mic (turn off for device audio only)"
+            android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="audio_noise_suppression"
+            android:title="Noise suppression"
+            android:summary="Reduce background noise while recording (Android 10+ recommended)"
+            android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="audio_echo_cancel"
+            android:title="Echo cancellation"
+            android:summary="Reduce echo from speakers while recording"
+            android:defaultValue="true" />
+
+        <ListPreference
+            android:key="audio_bitrate"
+            android:title="Audio quality"
+            android:summary="Audio bitrate (higher = better, larger file)"
+            android:entries="@array/audio_bitrates"
+            android:entryValues="@array/audio_bitrate_values"
+            android:defaultValue="128000" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Video">
+
+        <ListPreference
+            android:key="video_resolution"
+            android:title="Resolution"
+            android:summary="Video resolution"
+            android:entries="@array/resolutions"
+            android:entryValues="@array/resolution_values"
+            android:defaultValue="screen" />
+
+        <ListPreference
+            android:key="video_fps"
+            android:title="Frame rate"
+            android:summary="Frames per second"
+            android:entries="@array/fps_options"
+            android:entryValues="@array/fps_values"
+            android:defaultValue="30" />
+
+        <ListPreference
+            android:key="video_bitrate"
+            android:title="Video bitrate"
+            android:summary="Video quality (higher = better, larger file)"
+            android:entries="@array/video_bitrates"
+            android:entryValues="@array/video_bitrate_values"
+            android:defaultValue="8000000" />
+
+        <SwitchPreference
+            android:key="video_orientation_lock"
+            android:title="Lock orientation"
+            android:summary="Record in the current screen orientation without auto-rotating"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Capture &amp; overlay">
 
         <SwitchPreference
             android:key="show_screenshot_button"
@@ -33,26 +101,6 @@
             android:key="drm_note"
             android:title="About DRM-protected content"
             android:summary="Netflix, Prime Video, Disney+ and other DRM apps cannot be recorded — the OS blocks capture at the hardware level." />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="Recording quality">
-
-        <ListPreference
-            android:key="video_resolution"
-            android:title="Resolution"
-            android:summary="Screen resolution"
-            android:entries="@array/resolutions"
-            android:entryValues="@array/resolution_values"
-            android:defaultValue="1080p" />
-
-        <ListPreference
-            android:key="video_fps"
-            android:title="Frame rate"
-            android:summary="Frames per second"
-            android:entries="@array/fps_options"
-            android:entryValues="@array/fps_values"
-            android:defaultValue="30" />
 
     </PreferenceCategory>
 
