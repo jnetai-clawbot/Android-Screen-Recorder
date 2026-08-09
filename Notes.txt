@@ -76,6 +76,9 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.3 (2026-08-09)
+- **FIXED EACCES storage error**: writing directly to the raw DCIM path is blocked by Android 10 scoped storage even with permission granted (legacy storage flag not honored on updated installs). Now records into the app-private external dir (always writable), then moves the finished file to the visible DCIM/ScreenRecorder/Recordings folder via MediaStore on stop.
+
 ### v1.4.2 (2026-08-09)
 - **FIXED recording broken by v1.4.1**: MediaRecorder needs a real filesystem path, but v1.4.1 passed a MediaStore URI path (/external/video/media/...) which isn't a real path -> ENOENT. Now uses the real public DCIM/ScreenRecorder/Recordings path (visible in Gallery/File Manager) with requestLegacyExternalStorage.
 

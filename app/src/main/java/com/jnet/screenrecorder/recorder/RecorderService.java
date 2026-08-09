@@ -171,22 +171,12 @@ public class RecorderService extends Service {
      * dir only if MediaStore is unavailable.
      */
     private File createOutputFile(String name) {
-        // MediaRecorder needs a REAL filesystem path (not a MediaStore URI path).
-        // Use the visible public DCIM/ScreenRecorder/Recordings folder. On Android 10
-        // with requestLegacyExternalStorage=true (set in the manifest) this raw path
-        // is writable, and the file is visible in Gallery / File Manager.
-        try {
-            File base = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DCIM);
-            File dir = new File(base, "ScreenRecorder/Recordings");
-            if (!dir.exists()) dir.mkdirs();
-            if (dir.exists()) {
-                return new File(dir, name);
-            }
-        } catch (Exception e) {
-            com.jnet.screenrecorder.ErrorLog.e("Public DCIM dir unavailable, using fallback", e);
-        }
-        // Fallback: app-private external dir (always writable)
+        // MediaRecorder needs a REAL filesystem path. On Android 10 scoped storage,
+        // writing to the raw public DCIM path can throw EACCES even with storage
+        // permission granted (legacy storage flag not honored on updated installs).
+        // So record into the app-private external dir (ALWAYS writable, no permission
+        // needed), then move the finished file to the visible DCIM folder via
+        // MediaStore when recording stops.
         File dir = getRecordingsDir();
         return new File(dir, name);
     }
@@ -445,12 +435,52 @@ public class RecorderService extends Service {
         unregisterBatteryMonitor();
 
         if (mOutputFile != null && mOutputFile.exists()) {
-            scanFile(mOutputFile);
-            Toast.makeText(this, "Saved: " + mOutputFile.getName(), Toast.LENGTH_LONG).show();
+            // Move the finished recording to the visible DCIM/ScreenRecorder/Recordings
+            // folder via MediaStore (handles Android 10 scoped storage correctly).
+            Uri visibleUri = moveToVisibleLocation(mOutputFile);
+            if (visibleUri != null) {
+                Toast.makeText(this, "Saved to DCIM/ScreenRecorder/Recordings: "
+                        + mOutputFile.getName(), Toast.LENGTH_LONG).show();
+            } else {
+                scanFile(mOutputFile);
+                Toast.makeText(this, "Saved: " + mOutputFile.getName(), Toast.LENGTH_LONG).show();
+            }
         }
 
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
+    }
+
+    /**
+     * Copies a finished recording from the app-private dir into the visible
+     * DCIM/ScreenRecorder/Recordings folder via MediaStore, so the user can find it
+     * in Gallery / File Manager. Returns the MediaStore URI, or null on failure.
+     */
+    private Uri moveToVisibleLocation(File src) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Video.Media.DISPLAY_NAME, src.getName());
+            values.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+            values.put(MediaStore.Video.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_DCIM + "/ScreenRecorder/Recordings");
+            Uri uri = getContentResolver().insert(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) return null;
+            java.io.OutputStream out = getContentResolver().openOutputStream(uri);
+            if (out == null) return null;
+            java.io.InputStream in = new java.io.FileInputStream(src);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            in.close();
+            out.close();
+            // Remove the private copy now that it's in the visible folder
+            src.delete();
+            return uri;
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Move to visible location failed", e);
+            return null;
+        }
     }
 
     private void takeScreenshot() {
