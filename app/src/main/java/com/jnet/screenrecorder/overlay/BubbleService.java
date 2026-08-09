@@ -187,17 +187,10 @@ public class BubbleService extends Service {
         int bubbleColour = parseColour(prefs.getString("bubble_colour", "0xE61565C0"));
         btnExpand.getBackground().mutate().setTint(bubbleColour);
 
-        // Semi-transparent until pressed, then fully visible
+        // Semi-transparent until pressed, then fully visible (via state list animator)
         btnExpand.setAlpha(0.55f);
-        btnExpand.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                v.setAlpha(1.0f);
-            } else if (event.getAction() == MotionEvent.ACTION_UP
-                    || event.getAction() == MotionEvent.ACTION_CANCEL) {
-                v.setAlpha(0.55f);
-            }
-            return false;
-        });
+        btnExpand.setClickable(false); // let the FrameLayout handle all touches
+        btnExpand.setFocusable(false);
 
         // Make the whole bubble (FrameLayout) clickable so touch events reach it
         mBubbleView.setClickable(true);
