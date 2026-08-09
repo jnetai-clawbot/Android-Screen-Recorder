@@ -475,17 +475,11 @@ public class RecorderService extends Service {
     }
 
     private File getRecordingsDir() {
-        File base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        File dir = new File(base, "ScreenRecorder/Recordings");
-        if (!dir.exists()) dir.mkdirs();
-        return dir;
+        return StorageUtil.getRecordingsDir(this);
     }
 
     private File getScreenshotsDir() {
-        File base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        File dir = new File(base, "ScreenRecorder/Screenshots");
-        if (!dir.exists()) dir.mkdirs();
-        return dir;
+        return StorageUtil.getScreenshotsDir(this);
     }
 
     private void scanFile(File file) {

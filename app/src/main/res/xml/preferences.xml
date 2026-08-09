@@ -6,10 +6,27 @@
         <EditTextPreference
             android:key="storage_location"
             android:title="Save location"
-            android:summary="DCIM/ScreenRecorder (default)"
+            android:summary="/storage/emulated/0/DCIM/ScreenRecorder (default)"
             android:dialogTitle="Storage folder"
-            android:dialogMessage="Folder under DCIM for recordings &amp; screenshots"
-            android:defaultValue="DCIM/ScreenRecorder" />
+            android:dialogMessage="Absolute path where recordings &amp; screenshots are saved"
+            android:defaultValue="/storage/emulated/0/DCIM/ScreenRecorder" />
+
+        <Preference
+            android:key="create_dirs"
+            android:title="Create storage folders"
+            android:summary="Create the default ScreenRecorder/Recordings &amp; Screenshots folders if missing" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Appearance">
+
+        <ListPreference
+            android:key="theme_mode"
+            android:title="Theme"
+            android:summary="Dark mode / light mode / follow system"
+            android:entries="@array/theme_options"
+            android:entryValues="@array/theme_values"
+            android:defaultValue="system" />
 
     </PreferenceCategory>
 

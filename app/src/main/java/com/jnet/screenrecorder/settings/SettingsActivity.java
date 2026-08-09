@@ -22,6 +22,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.jnet.screenrecorder.ThemeUtil.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
@@ -69,6 +70,14 @@ public class SettingsActivity extends AppCompatActivity {
                 share.putExtra(Intent.EXTRA_TEXT,
                         "Check out J~Net Screen Recorder — record screen + audio with a quick-access bubble. " + LATEST_RELEASE_URL);
                 startActivity(Intent.createChooser(share, "Share app"));
+                return true;
+            });
+
+            findPreference("create_dirs").setOnPreferenceClickListener(pref -> {
+                boolean ok = com.jnet.screenrecorder.StorageUtil.ensureFolders(getActivity());
+                Toast.makeText(getActivity(),
+                        ok ? "Storage folders ready" : "Could not create folders — check storage permission",
+                        Toast.LENGTH_LONG).show();
                 return true;
             });
         }

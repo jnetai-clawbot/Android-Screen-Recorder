@@ -327,9 +327,7 @@ public class BubbleService extends Service {
     }
 
     private void saveScreenshot(android.graphics.Bitmap bmp) {
-        File base = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-        File dir = new File(base, "ScreenRecorder/Screenshots");
-        if (!dir.exists()) dir.mkdirs();
+        File dir = com.jnet.screenrecorder.StorageUtil.getScreenshotsDir(this);
         String name = "SCR_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".png";
         File file = new File(dir, name);
         try (FileOutputStream fos = new FileOutputStream(file)) {
