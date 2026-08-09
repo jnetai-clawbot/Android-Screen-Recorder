@@ -194,6 +194,9 @@ public class RecorderService extends Service {
 
         try {
             mMediaProjection = mProjectionManager.getMediaProjection(sResultCode, sResultData);
+            // Keep the static reference in sync so isRecording() reports the real
+            // state (the bubble uses it to show Record vs Stop and to stop correctly).
+            sMediaProjection = mMediaProjection;
         } catch (Exception e) {
             com.jnet.screenrecorder.ErrorLog.e("Failed to get media projection", e);
             Log.e(TAG, "Failed to get media projection", e);

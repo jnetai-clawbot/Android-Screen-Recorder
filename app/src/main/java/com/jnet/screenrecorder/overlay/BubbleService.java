@@ -153,6 +153,24 @@ public class BubbleService extends Service {
         startForeground(id, notification);
     }
 
+    /**
+     * Temporarily re-foregrounds the bubble service with the MEDIA_PROJECTION type,
+     * which Android 10+ requires before getMediaProjection() can be called.
+     * Called only while taking a screenshot.
+     */
+    private void startForegroundWithProjectionType() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIF_ID, buildNotification(),
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+            } else {
+                startForeground(NOTIF_ID, buildNotification());
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("startForeground(projection type) failed", e);
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -382,6 +400,11 @@ public class BubbleService extends Service {
         hideBubblesForScreenshot();
         if (mMediaProjection == null) {
             try {
+                // Android 10+ requires the service to be a foreground service of type
+                // FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION before getMediaProjection().
+                // The bubble normally runs WITHOUT that type (to avoid a crash on start),
+                // so temporarily re-foreground with the mediaProjection type here.
+                startForegroundWithProjectionType();
                 mMediaProjection = mProjectionManager.getMediaProjection(
                         RecorderService.getProjectionResultCode(),
                         RecorderService.getProjectionData());

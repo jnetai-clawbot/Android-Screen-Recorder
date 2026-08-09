@@ -76,6 +76,10 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.7 (2026-08-09)
+- **FIXED screenshot failing to save**: BubbleService now calls startForeground() with FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION before getMediaProjection() (Android 10+ requirement). Previously threw SecurityException "Media projections require a foreground service of type FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION".
+- **FIXED record bubble not stopping when already recording**: RecorderService.isRecording() checked the static sMediaProjection which was NEVER set during recording (only cleared to null), so it always returned false. Now sMediaProjection is synced to mMediaProjection when recording starts, so the stop button shows and clicking it stops the recording.
+
 ### v1.4.6 (2026-08-09)
 - **Camera screenshot bubble now fully clickable**: both the camera icon AND the bubble around it are clickable. The ImageButton handles the tap (takes a screenshot); the FrameLayout handles dragging. Tapping anywhere on the bubble takes a screenshot.
 - **Both bubbles hidden during screenshot**: the main bubble and the camera bubble are hidden before capture so they don't appear in the screenshot, then re-shown after the screenshot is saved.
