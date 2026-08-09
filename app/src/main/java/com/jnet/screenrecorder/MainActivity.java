@@ -109,8 +109,23 @@ public class MainActivity extends AppCompatActivity {
 
         // One-time permission onboarding: prompt for everything the app needs ONCE
         requestAllPermissionsIfFirstRun();
-        // Old devices (Android 7-9) need runtime storage permission to save files
-        requestLegacyStorageIfNeeded();
+        // Ensure the save folders exist (storage permission is granted in the batch above)
+        createStorageFolders();
+    }
+
+    /**
+     * MainActivity uses launchMode="singleTask", so when the app is already open and
+     * the user taps Start (from the notification or bubble), the ACTION_REQUEST_CAPTURE
+     * intent is delivered here via onNewIntent() instead of onCreate(). Without this
+     * handler the screen-capture permission prompt was silently dropped.
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent != null && ACTION_REQUEST_CAPTURE.equals(intent.getAction())) {
+            requestScreenCapture();
+        }
     }
 
     /**
