@@ -10,6 +10,8 @@
         android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
         android:maxSdkVersion="35"
         tools:targetApi="34" />
+    <!-- Bubble foreground service (specialUse type) requires its own permission on API 34+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
