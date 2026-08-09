@@ -199,6 +199,11 @@ public class BubbleService extends Service {
             return false;
         });
 
+        // Make the whole bubble (FrameLayout) clickable so touch events reach it
+        mBubbleView.setClickable(true);
+        mBubbleView.setFocusable(true);
+        mBubbleView.setFocusableInTouchMode(true);
+
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
