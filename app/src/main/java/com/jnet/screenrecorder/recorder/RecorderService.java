@@ -167,6 +167,12 @@ public class RecorderService extends Service {
             stopRecording();
         }
 
+        // IMPORTANT: on Android 10+, getMediaProjection() requires the service to
+        // already be running as a FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION service.
+        // Call startForeground() with that type BEFORE requesting the projection,
+        // otherwise it throws SecurityException.
+        startForegroundCompat(NOTIF_ID, buildNotification("Starting recording..."));
+
         try {
             mMediaProjection = mProjectionManager.getMediaProjection(sResultCode, sResultData);
         } catch (Exception e) {
