@@ -62,8 +62,14 @@ public class BubbleService extends Service {
     private WindowManager mWindowManager;
     private View mBubbleView;        // the small circular bubble
     private View mExpandedView;      // the expanded panel with buttons
+    private View mScreenshotBubble;  // separate draggable screenshot bubble
     private boolean mExpanded = false;
     private boolean mRecording = false;
+
+    // separate screenshot bubble drag state
+    private float mShotStartX, mShotStartY;
+    private int mShotBaseX, mShotBaseY;
+    private boolean mShotDragging;
 
     private static boolean sRunning = false;
 
@@ -250,6 +256,9 @@ public class BubbleService extends Service {
                 .getBoolean("show_screenshot_button", true);
         btnScreenshot.setVisibility(showScreenshot ? View.VISIBLE : View.GONE);
 
+        // Start/Stop toggle: Record shown when idle, Stop shown while recording
+        btnRecord.setVisibility(mRecording ? View.GONE : View.VISIBLE);
+        btnStop.setVisibility(mRecording ? View.VISIBLE : View.GONE);
         btnRecord.setOnClickListener(v -> startRecording());
         btnStop.setOnClickListener(v -> stopRecording());
         btnScreenshot.setOnClickListener(v -> {
@@ -264,6 +273,9 @@ public class BubbleService extends Service {
         });
         btnClose.setOnClickListener(v -> stopSelf());
 
+        // Show the separate draggable screenshot bubble (if overlay mode is on)
+        showScreenshotBubble();
+
         mExpandedView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
                 if (mExpanded) toggleExpanded();
@@ -275,7 +287,6 @@ public class BubbleService extends Service {
 
     private void toggleExpanded() {
         if (mExpanded) {
-            // collapse
             mWindowManager.removeView(mExpandedView);
             mExpanded = false;
             // show collapsed bubble
@@ -393,6 +404,65 @@ public class BubbleService extends Service {
             imageReader.close();
             ht.quitSafely();
         }, 400);
+    }
+
+    private void showScreenshotBubble() {
+        // Add a separate draggable screenshot bubble (only when overlay mode is on)
+        try {
+            boolean overlayOn = getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                    .getBoolean("overlay_mode", false);
+            if (!overlayOn) return;
+
+            LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            if (mScreenshotBubble != null) return;
+            mScreenshotBubble = inflater.inflate(R.layout.bubble_collapsed, null);
+            ImageButton btn = mScreenshotBubble.findViewById(R.id.btn_bubble);
+            btn.setImageResource(R.drawable.ic_camera);
+            btn.getBackground().mutate().setTint(0xE62E7D32); // green
+
+            WindowManager.LayoutParams sp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                            ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                            : WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT);
+            sp.gravity = Gravity.TOP | Gravity.START;
+            sp.x = getSharedPreferences("screenrecorder", MODE_PRIVATE).getInt("shot_x", 100);
+            sp.y = getSharedPreferences("screenrecorder", MODE_PRIVATE).getInt("shot_y", 500);
+
+            mScreenshotBubble.setOnTouchListener((v, event) -> {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        mShotStartX = event.getRawX(); mShotStartY = event.getRawY();
+                        mShotBaseX = sp.x; mShotBaseY = sp.y; mShotDragging = false;
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        float dx = event.getRawX() - mShotStartX;
+                        float dy = event.getRawY() - mShotStartY;
+                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                            mShotDragging = true;
+                            sp.x = mShotBaseX + (int) dx; sp.y = mShotBaseY + (int) dy;
+                            try { mWindowManager.updateViewLayout(mScreenshotBubble, sp); } catch (Exception ignored) {}
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (mShotDragging) {
+                            getSharedPreferences("screenrecorder", MODE_PRIVATE).edit()
+                                    .putInt("shot_x", sp.x).putInt("shot_y", sp.y).apply();
+                        } else {
+                            takeScreenshot();
+                        }
+                        return true;
+                }
+                return false;
+            });
+
+            mWindowManager.addView(mScreenshotBubble, sp);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not show screenshot bubble", e);
+        }
     }
 
     private void saveScreenshot(android.graphics.Bitmap bmp) {
