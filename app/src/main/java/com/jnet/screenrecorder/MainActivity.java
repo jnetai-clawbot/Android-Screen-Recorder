@@ -275,9 +275,11 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_OVERLAY) {
             if (Settings.canDrawOverlays(this)) {
                 Toast.makeText(this, "Overlay permission granted", Toast.LENGTH_SHORT).show();
-                // Auto-show the bubble as soon as overlay permission is granted
+                // Auto-show the bubble as soon as overlay permission is granted.
+                // Delay slightly so the activity is fully foregrounded before
+                // starting the foreground service (avoids ForegroundServiceStartNotAllowedException).
                 if (!BubbleService.isRunning()) {
-                    startBubbleService();
+                    new android.os.Handler(getMainLooper()).postDelayed(this::startBubbleService, 500);
                 }
             }
             updateOverlayStatus();
@@ -286,6 +288,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void startBubbleService() {
         Intent intent = new Intent(this, BubbleService.class);
+        // Use startService (not startForegroundService) to avoid
+        // ForegroundServiceStartNotAllowedException when the app is still
+        // returning from the overlay settings screen (backgrounded).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent);
         } else {
