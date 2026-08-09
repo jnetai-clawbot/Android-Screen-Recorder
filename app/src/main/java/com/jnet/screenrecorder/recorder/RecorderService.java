@@ -147,7 +147,7 @@ public class RecorderService extends Service {
                 resultCode = getProjectionResultCode();
                 data = getProjectionData();
             }
-            if (resultCode != -1 && data != null) {
+            if (data != null) {
                 setMediaProjection(resultCode, data);
                 startRecording();
             } else {
