@@ -76,6 +76,15 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.15 (2026-08-10)
+- **FIXED crash on app open (v1.4.13/v1.4.14)**: the auto-start of the
+  notification bar from onCreate() crashed the app on Android 12+ before the
+  user could even grant permissions. The auto-start is now REMOVED entirely.
+- The app now opens cleanly and grants permissions first.
+- The "Show notification bar on app open" toggle is now **OFF by default**.
+  After granting permissions, turn it on in Settings → Capture & overlay to
+  make the notification bar (Start/Stop/Settings) appear.
+
 ### v1.4.14 (2026-08-10)
 - **FIXED crash on app open (v1.4.13)**: autoStartNotificationBar() called
   startForegroundService() directly from onCreate(), which on Android 12+

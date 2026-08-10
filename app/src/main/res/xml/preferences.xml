@@ -128,8 +128,8 @@
         <SwitchPreference
             android:key="show_notification_bar"
             android:title="Show notification bar on app open"
-            android:summary="Show Start/Stop/Settings in the notification bar as soon as the app opens (ON by default). Works without the overlay bubble."
-            android:defaultValue="true" />
+            android:summary="Show Start/Stop/Settings in the notification bar (OFF by default). Turn it on after granting permissions."
+            android:defaultValue="false" />
 
         <SwitchPreference
             android:key="show_screenshot_button"
