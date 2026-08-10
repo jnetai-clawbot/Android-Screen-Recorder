@@ -129,6 +129,37 @@ public class MainActivity extends AppCompatActivity {
         requestAllPermissionsIfFirstRun();
         // Ensure the save folders exist (storage permission is granted in the batch above)
         createStorageFolders();
+        // If the user enabled "Show notification bar controls" previously, bring it
+        // back on app open — but ONLY when the toggle is on (OFF by default), and
+        // never crash if starting fails.
+        autoStartNotificationBarIfEnabled();
+    }
+
+    /**
+     * Safely starts the notification bar if the user has enabled it in Settings.
+     * OFF by default, so a fresh install never auto-starts. Wrapped in try/catch so
+     * a foreground-service start failure (Android 12+ / GrapheneOS) can never crash
+     * the app — it just logs the error.
+     */
+    private void autoStartNotificationBarIfEnabled() {
+        try {
+            boolean enabled = getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                    .getBoolean("show_notification_bar", false);
+            if (!enabled) {
+                return;
+            }
+            if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+                return;
+            }
+            Intent intent = new Intent(this, com.jnet.screenrecorder.overlay.BubbleService.class);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("auto-start notification bar failed (non-fatal)", e);
+        }
     }
 
     /**

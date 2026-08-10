@@ -235,6 +235,14 @@ public class SettingsActivity extends AppCompatActivity {
             if ("show_screenshot_button".equals(key)) {
                 // toggle screenshot visibility — handled by bubble on next open
             }
+            if ("show_notification_bar".equals(key)) {
+                boolean on = sharedPreferences.getBoolean("show_notification_bar", false);
+                if (on) {
+                    startNotificationBarSafe(getActivity(), 0);
+                } else {
+                    stopNotificationBar(getActivity());
+                }
+            }
             if ("bubble_size".equals(key) || "bubble_colour".equals(key)) {
                 // Refresh the live bubble if it's running
                 if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
@@ -282,6 +290,122 @@ public class SettingsActivity extends AppCompatActivity {
                     com.jnet.screenrecorder.ErrorLog.e("overlay_mode toggle error", e);
                     Toast.makeText(getActivity(), "Could not toggle bubble", Toast.LENGTH_SHORT).show();
                 }
+            }
+        }
+
+        /**
+         * Safely starts the notification-bar service (Start/Stop/Settings) so recording
+         * works even when the overlay bubble cannot be granted (e.g. GrapheneOS).
+         * Never crashes: if overlay permission is missing it asks to grant it (with a
+         * Cancel button); if starting the service throws (e.g. ForegroundServiceStart-
+         * NotAllowedException on Android 12+) it retries in a loop with a Cancel
+         * option, instead of crashing the app.
+         */
+        private void startNotificationBarSafe(final android.app.Activity activity, final int attempt) {
+            try {
+                // Already running? Nothing to do.
+                if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+                    return;
+                }
+                // Overlay permission must be granted first, otherwise BubbleService
+                // falls back to notification-only mode but the user should still be
+                // told it needs overlay access for the bubble itself.
+                if (!android.provider.Settings.canDrawOverlays(activity)) {
+                    // Request overlay permission with a Cancel button. If the user
+                    // grants it, the BubbleService is started on return; if they
+                    // cancel, we simply switch the toggle back off (no crash).
+                    new androidx.appcompat.app.AlertDialog.Builder(activity)
+                            .setTitle("Overlay permission required")
+                            .setMessage("To show the floating bubble, enable \"Display over other apps\" "
+                                    + "for this app. The notification-bar controls will still work without it.")
+                            .setPositiveButton("Grant", (d, w) -> {
+                                try {
+                                    Intent grant = new Intent(
+                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:" + activity.getPackageName()));
+                                    activity.startActivity(grant);
+                                } catch (Exception e) {
+                                    com.jnet.screenrecorder.ErrorLog.e("could not open overlay settings", e);
+                                    startNotificationBarSafe(activity, attempt + 1);
+                                }
+                            })
+                            .setNegativeButton("Cancel", (d, w) -> {
+                                // User declined overlay access - turn the toggle back off
+                                // and show the notification bar anyway (it works without overlay).
+                                getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                        .edit().putBoolean("show_notification_bar", false).apply();
+                                // Notification bar still works without overlay - start it anyway.
+                                doStartNotificationBar(activity, attempt);
+                            })
+                            .setCancelable(true)
+                            .setOnCancelListener(d -> {
+                                getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                        .edit().putBoolean("show_notification_bar", false).apply();
+                            })
+                            .show();
+                    return;
+                }
+                doStartNotificationBar(activity, attempt);
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("notification bar start error", e);
+                // Never crash - offer a retry loop with a Cancel button.
+                showStartFailureDialog(activity, attempt);
+            }
+        }
+
+        private void doStartNotificationBar(final android.app.Activity activity, final int attempt) {
+            try {
+                Intent i = new Intent(activity, com.jnet.screenrecorder.overlay.BubbleService.class);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    activity.startForegroundService(i);
+                } else {
+                    activity.startService(i);
+                }
+                Toast.makeText(activity, "Notification bar enabled", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("notification bar start failed", e);
+                showStartFailureDialog(activity, attempt);
+            }
+        }
+
+        /**
+         * Shows a Retry/Cancel dialog when the notification bar fails to start, so the
+         * app never crashes. Retry loops back into the safe-start method.
+         */
+        private void showStartFailureDialog(final android.app.Activity activity, final int attempt) {
+            try {
+                new androidx.appcompat.app.AlertDialog.Builder(activity)
+                        .setTitle("Could not start notification bar")
+                        .setMessage("The notification bar failed to start (attempt " + (attempt + 1)
+                                + "). This can happen on Android 12+ if the app is not in the foreground. "
+                                + "Tap Retry to try again, or Cancel to turn it off.")
+                        .setPositiveButton("Retry", (d, w) -> startNotificationBarSafe(activity, attempt + 1))
+                        .setNegativeButton("Cancel", (d, w) -> {
+                            getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                    .edit().putBoolean("show_notification_bar", false).apply();
+                        })
+                        .setCancelable(true)
+                        .setOnCancelListener(d -> {
+                            getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                                    .edit().putBoolean("show_notification_bar", false).apply();
+                        })
+                        .show();
+            } catch (Exception e) {
+                // Absolutely never crash - just flip the toggle back off.
+                try {
+                    getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                            .edit().putBoolean("show_notification_bar", false).apply();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        private void stopNotificationBar(android.app.Activity activity) {
+            try {
+                activity.stopService(new Intent(activity,
+                        com.jnet.screenrecorder.overlay.BubbleService.class));
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("stop notification bar error", e);
             }
         }
     }
