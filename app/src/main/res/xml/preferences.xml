@@ -180,7 +180,7 @@
         <Preference
             android:key="version"
             android:title="Version"
-            android:summary="1.4.8" />
+            android:summary="1.5.0" />
 
         <Preference
             android:key="about"
