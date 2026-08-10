@@ -76,6 +76,18 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.13 (2026-08-10)
+- **FIXED version number in Settings**: the About section was showing a stale
+  hardcoded "1.4.8". It now reads the real version dynamically from the manifest,
+  so it always shows the actual installed version.
+- **Notification bar now auto-starts on app open**: the Start/Stop/Settings
+  notification appears immediately when you open the app (not just after starting
+  a recording). This is what makes recording possible on GrapheneOS without the
+  overlay bubble.
+- **New toggle "Show notification bar on app open"** (Settings → Capture &
+  overlay, ON by default) so you can turn it off/on to make the notification
+  appear/disappear.
+
 ### v1.4.12 (2026-08-10)
 - **FIXED GrapheneOS: notification bar now shows immediately on app open.**
   Root cause: BubbleService.onCreate() always called createBubble(), and when

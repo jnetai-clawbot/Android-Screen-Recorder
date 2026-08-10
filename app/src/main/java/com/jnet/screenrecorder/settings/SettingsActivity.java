@@ -55,6 +55,17 @@ public class SettingsActivity extends AppCompatActivity {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.preferences);
 
+            // Show the real version (from the manifest) in the About section.
+            try {
+                String v = getActivity().getPackageManager()
+                        .getPackageInfo(getActivity().getPackageName(), 0).versionName;
+                Preference versionPref = findPreference("version");
+                if (versionPref != null) {
+                    versionPref.setSummary(v);
+                }
+            } catch (Exception ignored) {
+            }
+
             findPreference("about").setOnPreferenceClickListener(pref -> {
                 Toast.makeText(getActivity(),
                         "Made by jnetai.com — J~Net Screen Recorder",

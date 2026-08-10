@@ -126,6 +126,12 @@
     <PreferenceCategory android:title="Capture &amp; overlay">
 
         <SwitchPreference
+            android:key="show_notification_bar"
+            android:title="Show notification bar on app open"
+            android:summary="Show Start/Stop/Settings in the notification bar as soon as the app opens (ON by default). Works without the overlay bubble."
+            android:defaultValue="true" />
+
+        <SwitchPreference
             android:key="show_screenshot_button"
             android:title="Show screenshot button"
             android:summary="Toggle the screenshot capture option in the bubble"
@@ -180,7 +186,7 @@
         <Preference
             android:key="version"
             android:title="Version"
-            android:summary="1.4.8" />
+            android:summary="1.4.12" />
 
         <Preference
             android:key="about"

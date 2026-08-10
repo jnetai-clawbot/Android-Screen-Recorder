@@ -129,6 +129,30 @@ public class MainActivity extends AppCompatActivity {
         requestAllPermissionsIfFirstRun();
         // Ensure the save folders exist (storage permission is granted in the batch above)
         createStorageFolders();
+        // Auto-start the notification bar (Start/Stop/Settings) on app open, so recording
+        // works on GrapheneOS and other ROMs where the overlay bubble can't be granted.
+        // Controlled by the "Show notification bar on app open" toggle (ON by default).
+        autoStartNotificationBar();
+    }
+
+    private void autoStartNotificationBar() {
+        boolean enabled = getSharedPreferences("screenrecorder", MODE_PRIVATE)
+                .getBoolean("show_notification_bar", true);
+        if (!enabled) {
+            return;
+        }
+        try {
+            if (!BubbleService.isRunning()) {
+                Intent intent = new Intent(this, BubbleService.class);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent);
+                } else {
+                    startService(intent);
+                }
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not auto-start notification bar", e);
+        }
     }
 
     /**
