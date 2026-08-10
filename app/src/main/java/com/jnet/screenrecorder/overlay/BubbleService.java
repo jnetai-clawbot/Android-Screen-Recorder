@@ -142,7 +142,15 @@ public class BubbleService extends Service {
         // startForegroundService(); adding overlay windows first can crash the
         // service (ForegroundServiceTypeException / BadTokenException).
         startForegroundCompat(NOTIF_ID, buildNotification());
-        createBubble();
+        // Only create the overlay bubble if the user has granted overlay permission.
+        // On GrapheneOS (and other strict ROMs) the overlay grant may be blocked, but
+        // the notification bar (Start/Stop/Settings) must still work so recording is
+        // possible without the bubble.
+        if (Settings.canDrawOverlays(this)) {
+            createBubble();
+        } else {
+            com.jnet.screenrecorder.ErrorLog.i("Overlay permission not granted - notification bar only");
+        }
     }
 
     private void startForegroundCompat(int id, Notification notification) {

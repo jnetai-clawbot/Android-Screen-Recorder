@@ -76,6 +76,17 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.12 (2026-08-10)
+- **FIXED GrapheneOS: notification bar now shows immediately on app open.**
+  Root cause: BubbleService.onCreate() always called createBubble(), and when
+  overlay permission was missing, createBubble() called stopSelf() which killed
+  the whole service INCLUDING the notification. So on GrapheneOS there was no
+  notification and no way to start recording.
+  Fix: the service now only creates the overlay bubble if overlay permission is
+  granted, and ALWAYS keeps the notification bar (Start/Stop/Settings) alive even
+  without overlay permission. Recording now works on GrapheneOS via the
+  notification bar without needing the bubble.
+
 ### v1.4.11 (2026-08-10)
 - **FIXED v1.4.10 build failure**: `MediaProjection.setSecure()` is not a public API, so the build failed to compile. Switched to reflection to attempt disabling the secure flag for DRM capture (Clapper / own-content experiments). On most devices Widevine L1/L3 still records blank, but it's worth trying.
 
