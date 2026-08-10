@@ -76,6 +76,16 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.17 (2026-08-10)
+- **FIXED: the "Show notification bar on app open" toggle now takes effect
+  IMMEDIATELY.** Previously it only applied on the next app launch, so toggling
+  it on while in Settings did nothing until you reopened the app. Now turning it
+  on instantly starts the notification bar (Start/Stop/Settings), and turning it
+  off instantly stops it.
+- Note: tapping Start in the notification opens the Android screen-capture
+  consent dialog and recording starts immediately (no countdown). A 3-second
+  countdown is the native Android 17 screen recorder, not this app.
+
 ### v1.4.16 (2026-08-10)
 - **ROLLED BACK to the v1.4.13 code base** (the last version that opened without
   crashing) and removed the notification-bar auto-start entirely.

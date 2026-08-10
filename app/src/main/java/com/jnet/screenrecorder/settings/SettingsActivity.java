@@ -66,6 +66,41 @@ public class SettingsActivity extends AppCompatActivity {
             } catch (Exception ignored) {
             }
 
+            // "Show notification bar on app open" toggle: start/stop the notification
+            // bar IMMEDIATELY when toggled, so it appears right away (not just on the
+            // next app launch).
+            Preference notifPref = findPreference("show_notification_bar");
+            if (notifPref != null) {
+                notifPref.setOnPreferenceChangeListener((pref, newValue) -> {
+                    boolean on = Boolean.TRUE.equals(newValue);
+                    android.content.Context ctx = getActivity();
+                    if (on) {
+                        // Start the notification bar service now.
+                        try {
+                            Intent i = new Intent(ctx, com.jnet.screenrecorder.overlay.BubbleService.class);
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                ctx.startForegroundService(i);
+                            } else {
+                                ctx.startService(i);
+                            }
+                            Toast.makeText(ctx, "Notification bar enabled", Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            com.jnet.screenrecorder.ErrorLog.e("Could not start notification bar", e);
+                            Toast.makeText(ctx, "Could not start notification bar", Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        // Stop the notification bar service now.
+                        try {
+                            ctx.stopService(new Intent(ctx, com.jnet.screenrecorder.overlay.BubbleService.class));
+                            Toast.makeText(ctx, "Notification bar disabled", Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            com.jnet.screenrecorder.ErrorLog.e("Could not stop notification bar", e);
+                        }
+                    }
+                    return true;
+                });
+            }
+
             findPreference("about").setOnPreferenceClickListener(pref -> {
                 Toast.makeText(getActivity(),
                         "Made by jnetai.com — J~Net Screen Recorder",
