@@ -76,6 +76,14 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.14 (2026-08-10)
+- **FIXED crash on app open (v1.4.13)**: autoStartNotificationBar() called
+  startForegroundService() directly from onCreate(), which on Android 12+
+  (API 31+) throws ForegroundServiceStartNotAllowedException and crashes the app.
+  Now defers the service start with Handler.postDelayed(500ms) so the app is
+  fully in the foreground first. The notification bar (Start/Stop/Settings) still
+  auto-starts on app open, but without crashing.
+
 ### v1.4.13 (2026-08-10)
 - **FIXED version number in Settings**: the About section was showing a stale
   hardcoded "1.4.8". It now reads the real version dynamically from the manifest,
@@ -199,3 +207,24 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
   - **Copy error log to clipboard** — one-tap copy to send to the developer
   - **Clear error log** — wipe saved entries
 - Runtime errors (recording failures, projection/screenshot issues, permission problems) are now captured to the error log so you can see exactly what went wrong.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+App Crash History
+
+Started crashing again on v1.4.13
+
+
+
+
+
+
+
+
+
+
+
+
+
+

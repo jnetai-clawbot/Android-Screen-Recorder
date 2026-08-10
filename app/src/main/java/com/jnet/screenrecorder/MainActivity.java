@@ -141,18 +141,25 @@ public class MainActivity extends AppCompatActivity {
         if (!enabled) {
             return;
         }
-        try {
-            if (!BubbleService.isRunning()) {
-                Intent intent = new Intent(this, BubbleService.class);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent);
-                } else {
-                    startService(intent);
+        // Defer the service start so the app is fully in the foreground first.
+        // Starting a foreground service directly from onCreate() on Android 12+
+        // (API 31+) can throw ForegroundServiceStartNotAllowedException and crash.
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                if (!BubbleService.isRunning()) {
+                    Intent intent = new Intent(this, BubbleService.class);
+                    // Use startService (not startForegroundService) to avoid the strict
+                    // 5-second startForeground() window on Android 12+.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent);
+                    } else {
+                        startService(intent);
+                    }
                 }
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Could not auto-start notification bar", e);
             }
-        } catch (Exception e) {
-            com.jnet.screenrecorder.ErrorLog.e("Could not auto-start notification bar", e);
-        }
+        }, 500);
     }
 
     /**
