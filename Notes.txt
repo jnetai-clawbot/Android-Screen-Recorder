@@ -76,6 +76,14 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Version history
 
+### v1.4.18 (2026-08-10)
+- **FIXED crash when toggling "Show notification bar on app open" ON (v1.4.17).**
+  The toggle listener called startForegroundService() directly from the
+  SettingsActivity preference change, which on Android 12+ throws
+  ForegroundServiceStartNotAllowedException (app is in the background) and
+  crashes. The service start is now deferred with Handler.postDelayed(300ms) so
+  it happens when the app is in the foreground.
+
 ### v1.4.17 (2026-08-10)
 - **FIXED: the "Show notification bar on app open" toggle now takes effect
   IMMEDIATELY.** Previously it only applied on the next app launch, so toggling

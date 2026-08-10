@@ -75,19 +75,24 @@ public class SettingsActivity extends AppCompatActivity {
                     boolean on = Boolean.TRUE.equals(newValue);
                     android.content.Context ctx = getActivity();
                     if (on) {
-                        // Start the notification bar service now.
-                        try {
-                            Intent i = new Intent(ctx, com.jnet.screenrecorder.overlay.BubbleService.class);
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                ctx.startForegroundService(i);
-                            } else {
-                                ctx.startService(i);
+                        // Start the notification bar service. Defer with a short delay so
+                        // the app is in the foreground first - starting a foreground
+                        // service from a background context on Android 12+ throws
+                        // ForegroundServiceStartNotAllowedException and crashes.
+                        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                            try {
+                                Intent i = new Intent(ctx, com.jnet.screenrecorder.overlay.BubbleService.class);
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    ctx.startForegroundService(i);
+                                } else {
+                                    ctx.startService(i);
+                                }
+                                Toast.makeText(ctx, "Notification bar enabled", Toast.LENGTH_SHORT).show();
+                            } catch (Exception e) {
+                                com.jnet.screenrecorder.ErrorLog.e("Could not start notification bar", e);
+                                Toast.makeText(ctx, "Could not start notification bar", Toast.LENGTH_LONG).show();
                             }
-                            Toast.makeText(ctx, "Notification bar enabled", Toast.LENGTH_SHORT).show();
-                        } catch (Exception e) {
-                            com.jnet.screenrecorder.ErrorLog.e("Could not start notification bar", e);
-                            Toast.makeText(ctx, "Could not start notification bar", Toast.LENGTH_LONG).show();
-                        }
+                        }, 300);
                     } else {
                         // Stop the notification bar service now.
                         try {
