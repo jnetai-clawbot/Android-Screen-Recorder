@@ -243,6 +243,10 @@ public class SettingsActivity extends AppCompatActivity {
                     stopNotificationBar(getActivity());
                 }
             }
+            if ("enable_qs_tile".equals(key)) {
+                boolean on = sharedPreferences.getBoolean("enable_qs_tile", false);
+                toggleQsTile(getActivity(), on);
+            }
             if ("bubble_size".equals(key) || "bubble_colour".equals(key)) {
                 // Refresh the live bubble if it's running
                 if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
@@ -406,6 +410,38 @@ public class SettingsActivity extends AppCompatActivity {
                         com.jnet.screenrecorder.overlay.BubbleService.class));
             } catch (Exception e) {
                 com.jnet.screenrecorder.ErrorLog.e("stop notification bar error", e);
+            }
+        }
+
+        /**
+         * Enables/disables the Quick Settings tile. When enabled, the tile is requested
+         * via ACTION_REQUEST_ADD_TILE; when disabled, it is removed. Never crashes - any
+         * failure just logs and toasts.
+         */
+        private void toggleQsTile(android.app.Activity activity, boolean enable) {
+            try {
+                if (enable) {
+                    // Ask the user to add the tile to Quick Settings (system dialog).
+                    // This needs to run from the foreground activity.
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        Intent req = new Intent(
+                                android.service.quicksettings.TileService.ACTION_REQUEST_ADD_TILE);
+                        req.setData(android.net.Uri.parse("package:" + activity.getPackageName()));
+                        activity.startActivityForResult(req, 0);
+                        Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
+                                Toast.LENGTH_LONG).show();
+                    } else {
+                        // Pre-Android 10: tiles are added from the QS edit panel; just guide the user.
+                        Toast.makeText(activity, "Open Quick Settings and add the Screen Recorder tile (pencil icon)",
+                                Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(activity, "Tile disabled - remove it from Quick Settings if it's still shown",
+                            Toast.LENGTH_LONG).show();
+                }
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("toggle QS tile error", e);
+                Toast.makeText(activity, "Could not toggle Quick Settings tile", Toast.LENGTH_LONG).show();
             }
         }
     }

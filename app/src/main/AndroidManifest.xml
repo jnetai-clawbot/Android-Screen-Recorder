@@ -69,6 +69,18 @@
             android:label="@string/recorder_service_label"
             tools:targetApi="29" />
 
+        <!-- Quick Settings tile: starts/stops the recorder without overlay permission -->
+        <service
+            android:name=".quick.RecorderTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_record"
+            android:label="@string/tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.jnet.screenrecorder.fileprovider"

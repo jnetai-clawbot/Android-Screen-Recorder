@@ -132,6 +132,12 @@
             android:defaultValue="false" />
 
         <SwitchPreference
+            android:key="enable_qs_tile"
+            android:title="@string/enable_tile"
+            android:summary="@string/enable_tile_desc"
+            android:defaultValue="false" />
+
+        <SwitchPreference
             android:key="show_screenshot_button"
             android:title="Show screenshot button"
             android:summary="Toggle the screenshot capture option in the bubble"
@@ -186,7 +192,7 @@
         <Preference
             android:key="version"
             android:title="Version"
-            android:summary="1.5.1" />
+            android:summary="1.5.2" />
 
         <Preference
             android:key="about"

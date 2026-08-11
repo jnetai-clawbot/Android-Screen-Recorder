@@ -21,4 +21,7 @@
     <string name="permission_required">Permission required</string>
     <string name="audio_permission_desc">Microphone permission is required to record sound along with the screen.</string>
     <string name="notification_permission_desc">Notification permission is required to show recording status.</string>
+    <string name="tile_label">Screen Recorder</string>
+    <string name="enable_tile">Enable Quick Settings tile</string>
+    <string name="enable_tile_desc">Add a Start/Stop tile to the Quick Settings panel (works without overlay permission, OFF by default).</string>
 </resources>
