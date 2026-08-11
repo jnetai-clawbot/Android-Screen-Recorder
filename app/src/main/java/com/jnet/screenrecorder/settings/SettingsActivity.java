@@ -423,7 +423,20 @@ public class SettingsActivity extends AppCompatActivity {
                 if (enable) {
                     // Ask the user to add the tile to Quick Settings (system dialog).
                     // This needs to run from the foreground activity.
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        // Android 13+: the supported API. The raw REQUEST_ADD_TILE intent is
+                        // blocked for third-party apps on 13+, which throws
+                        // ActivityNotFoundException. requestAddTileService shows the system
+                        // "Add tile" dialog without needing any overlay permission.
+                        android.service.quicksettings.TileService.requestAddTileService(
+                                activity,
+                                new android.content.ComponentName(activity,
+                                        com.jnet.screenrecorder.quick.RecorderTileService.class),
+                                activity);
+                        Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
+                                Toast.LENGTH_LONG).show();
+                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        // Android 10-12L: fall back to the raw request intent.
                         Intent req = new Intent(
                                 "android.service.quicksettings.action.REQUEST_ADD_TILE");
                         req.setData(android.net.Uri.parse("package:" + activity.getPackageName()));
