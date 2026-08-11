@@ -61,7 +61,7 @@
         <service
             android:name=".overlay.BubbleService"
             android:exported="false"
-            android:foregroundServiceType="specialUse|mediaProjection"
+            android:foregroundServiceType="specialUse"
             android:label="@string/bubble_service_label"
             tools:targetApi="29">
             <property
