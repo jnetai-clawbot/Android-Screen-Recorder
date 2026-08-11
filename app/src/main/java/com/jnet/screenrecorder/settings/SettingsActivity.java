@@ -425,7 +425,7 @@ public class SettingsActivity extends AppCompatActivity {
                     // This needs to run from the foreground activity.
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                         Intent req = new Intent(
-                                android.service.quicksettings.TileService.ACTION_REQUEST_ADD_TILE);
+                                "android.service.quicksettings.action.REQUEST_ADD_TILE");
                         req.setData(android.net.Uri.parse("package:" + activity.getPackageName()));
                         activity.startActivityForResult(req, 0);
                         Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
