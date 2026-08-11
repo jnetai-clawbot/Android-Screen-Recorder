@@ -88,6 +88,18 @@ public class BubbleService extends Service {
     }
 
     /**
+     * Stops the bubble service. Public so the BubbleActivity (Bubbles API content
+     * host) can dismiss the bubble via its close button.
+     */
+    public static void stopBubble(Context context) {
+        try {
+            context.stopService(new Intent(context, BubbleService.class));
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("stop bubble error", e);
+        }
+    }
+
+    /**
      * Re-applies the bubble size, colour and location from the current settings
      * to a live-running bubble (used when settings change while it's visible).
      */
@@ -142,10 +154,17 @@ public class BubbleService extends Service {
         // startForegroundService(); adding overlay windows first can crash the
         // service (ForegroundServiceTypeException / BadTokenException).
         startForegroundCompat(NOTIF_ID, buildNotification());
-        // Only create the overlay bubble if the user has granted overlay permission.
-        // On GrapheneOS (and other strict ROMs) the overlay grant may be blocked, but
-        // the notification bar (Start/Stop/Settings) must still work so recording is
-        // possible without the bubble.
+        // Android 11+ (API 30+): the Bubbles API floats the bubble over other apps
+        // WITHOUT needing SYSTEM_ALERT_WINDOW overlay permission — this is the primary
+        // no-overlay bubble route. The notification above carries BubbleMetadata, so
+        // the system renders the bubble and hosts BubbleActivity. We do NOT need to
+        // add overlay views ourselves here.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            com.jnet.screenrecorder.ErrorLog.i("Bubbles API mode (no overlay permission needed)");
+            return;
+        }
+        // Android 10 and below (or overlay already granted as a fallback): use the
+        // manual SYSTEM_ALERT_WINDOW bubble. Only create it if overlay is granted.
         if (Settings.canDrawOverlays(this)) {
             createBubble();
         } else {
@@ -676,6 +695,30 @@ public class BubbleService extends Service {
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentIntent(contentIntent)
                 .setOngoing(true);
+
+        // Android 11+ (API 30+): use the Bubbles API so the floating bubble is
+        // system-managed and floats over other apps WITHOUT needing SYSTEM_ALERT_WINDOW
+        // overlay permission. The system provides the bubble and handles dragging; it
+        // hosts BubbleActivity which holds the record/stop/screenshot/settings controls.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                Intent bubbleIntent = new Intent(this, BubbleActivity.class);
+                PendingIntent bubblePi = PendingIntent.getActivity(
+                        this, 4, bubbleIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                NotificationCompat.BubbleMetadata bubbleMetadata =
+                        new NotificationCompat.BubbleMetadata.Builder(
+                                bubblePi,
+                                android.graphics.drawable.Icon.createWithResource(this,
+                                        R.drawable.ic_bubble))
+                                .setDesiredHeight(320)
+                                .setAutoExpandBubble(false)
+                                .build();
+                builder.setBubbleMetadata(bubbleMetadata);
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Could not attach bubble metadata", e);
+            }
+        }
 
         // Backup Start/Stop controls in the notification bar (AZ-style)
         boolean recording = RecorderService.isRecording();

@@ -207,7 +207,7 @@
         <Preference
             android:key="version"
             android:title="Version"
-            android:summary="1.5.4" />
+            android:summary="1.5.5" />
 
         <Preference
             android:key="about"
