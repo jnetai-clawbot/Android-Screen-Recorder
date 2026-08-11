@@ -337,44 +337,10 @@ public class SettingsActivity extends AppCompatActivity {
                 if (com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
                     return;
                 }
-                // Overlay permission must be granted first, otherwise BubbleService
-                // falls back to notification-only mode but the user should still be
-                // told it needs overlay access for the bubble itself.
-                if (!android.provider.Settings.canDrawOverlays(activity)) {
-                    // Request overlay permission with a Cancel button. If the user
-                    // grants it, the BubbleService is started on return; if they
-                    // cancel, we simply switch the toggle back off (no crash).
-                    new androidx.appcompat.app.AlertDialog.Builder(activity)
-                            .setTitle("Overlay permission required")
-                            .setMessage("To show the floating bubble, enable \"Display over other apps\" "
-                                    + "for this app. The notification-bar controls will still work without it.")
-                            .setPositiveButton("Grant", (d, w) -> {
-                                try {
-                                    Intent grant = new Intent(
-                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            android.net.Uri.parse("package:" + activity.getPackageName()));
-                                    activity.startActivity(grant);
-                                } catch (Exception e) {
-                                    com.jnet.screenrecorder.ErrorLog.e("could not open overlay settings", e);
-                                    startNotificationBarSafe(activity, attempt + 1);
-                                }
-                            })
-                            .setNegativeButton("Cancel", (d, w) -> {
-                                // User declined overlay access - turn the toggle back off
-                                // and show the notification bar anyway (it works without overlay).
-                                getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
-                                        .edit().putBoolean("show_notification_bar", false).apply();
-                                // Notification bar still works without overlay - start it anyway.
-                                doStartNotificationBar(activity, attempt);
-                            })
-                            .setCancelable(true)
-                            .setOnCancelListener(d -> {
-                                getActivity().getSharedPreferences("screenrecorder", MODE_PRIVATE)
-                                        .edit().putBoolean("show_notification_bar", false).apply();
-                            })
-                            .show();
-                    return;
-                }
+                // The notification-bar controls (Start/Stop/Screenshot) do NOT need
+                // overlay permission — they work on GrapheneOS and any hardened ROM
+                // where SYSTEM_ALERT_WINDOW is blocked. Start them unconditionally.
+                // (The floating bubble itself is a separate, optional overlay feature.)
                 doStartNotificationBar(activity, attempt);
             } catch (Exception e) {
                 com.jnet.screenrecorder.ErrorLog.e("notification bar start error", e);
