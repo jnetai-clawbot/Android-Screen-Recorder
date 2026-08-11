@@ -423,16 +423,32 @@ public class SettingsActivity extends AppCompatActivity {
                         // "Add tile" dialog without needing any overlay permission.
                         android.app.StatusBarManager sbm = activity.getSystemService(
                                 android.app.StatusBarManager.class);
-                        sbm.requestAddTileService(
-                                new android.content.ComponentName(activity,
-                                        com.jnet.screenrecorder.quick.RecorderTileService.class),
-                                activity.getString(R.string.tile_label),
-                                android.graphics.drawable.Icon.createWithResource(activity,
-                                        R.drawable.ic_bubble),
-                                android.os.AsyncTask.THREAD_POOL_EXECUTOR,
-                                null);
-                        Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
-                                Toast.LENGTH_LONG).show();
+                        if (sbm != null) {
+                            sbm.requestAddTileService(
+                                    new android.content.ComponentName(activity,
+                                            com.jnet.screenrecorder.quick.RecorderTileService.class),
+                                    activity.getString(R.string.tile_label),
+                                    android.graphics.drawable.Icon.createWithResource(activity,
+                                            R.drawable.ic_bubble),
+                                    android.os.AsyncTask.THREAD_POOL_EXECUTOR,
+                                    null);
+                            Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            // StatusBarManager unavailable (e.g. GrapheneOS) — fall back to
+                            // the raw intent or guide the user to add the tile manually.
+                            Intent req = new Intent(
+                                    "android.service.quicksettings.action.REQUEST_ADD_TILE");
+                            req.setData(android.net.Uri.parse("package:" + activity.getPackageName()));
+                            try {
+                                activity.startActivityForResult(req, 0);
+                                Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
+                                        Toast.LENGTH_LONG).show();
+                            } catch (Exception e2) {
+                                Toast.makeText(activity, "Open Quick Settings and add the Screen Recorder tile (pencil icon)",
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        }
                     } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                         // Android 10-12L: fall back to the raw request intent.
                         Intent req = new Intent(

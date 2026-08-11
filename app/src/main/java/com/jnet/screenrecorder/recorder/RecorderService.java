@@ -613,7 +613,7 @@ public class RecorderService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.notification_title_recording))
                 .setContentText(text)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.rec_dot)
                 .setContentIntent(contentIntent)
                 .setOngoing(true);
 

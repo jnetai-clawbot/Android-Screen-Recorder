@@ -692,7 +692,7 @@ public class BubbleService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.show_bubble))
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.rec_dot)
                 .setContentIntent(contentIntent)
                 .setOngoing(true);
 
