@@ -428,11 +428,11 @@ public class SettingsActivity extends AppCompatActivity {
                         // blocked for third-party apps on 13+, which throws
                         // ActivityNotFoundException. requestAddTileService shows the system
                         // "Add tile" dialog without needing any overlay permission.
+                        // Signature: requestAddTileService(ComponentName, UserHandle).
                         android.service.quicksettings.TileService.requestAddTileService(
-                                activity,
                                 new android.content.ComponentName(activity,
                                         com.jnet.screenrecorder.quick.RecorderTileService.class),
-                                activity);
+                                android.os.Process.myUserHandle());
                         Toast.makeText(activity, "Confirm the Screen Recorder tile in Quick Settings",
                                 Toast.LENGTH_LONG).show();
                     } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
