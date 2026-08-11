@@ -709,7 +709,7 @@ public class BubbleService extends Service {
                 NotificationCompat.BubbleMetadata bubbleMetadata =
                         new NotificationCompat.BubbleMetadata.Builder(
                                 bubblePi,
-                                android.graphics.drawable.Icon.createWithResource(this,
+                                androidx.core.graphics.drawable.IconCompat.createWithResource(this,
                                         R.drawable.ic_bubble))
                                 .setDesiredHeight(320)
                                 .setAutoExpandBubble(false)
