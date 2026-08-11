@@ -123,6 +123,21 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="GrapheneOS-compatible mode">
+
+        <SwitchPreference
+            android:key="graphene_mode"
+            android:title="GrapheneOS-compatible mode"
+            android:summary="Uses NO overlay permission. Controls recording via the notification bar, Quick Settings tile, and the notification Screenshot button. Use this on GrapheneOS / hardened devices where floating bubbles are blocked."
+            android:defaultValue="false" />
+
+        <Preference
+            android:key="graphene_note"
+            android:title="How it works on GrapheneOS"
+            android:summary="The floating bubble (overlay) is blocked by GrapheneOS. In this mode, use the persistent notification (Start / Stop / Screenshot) and the Quick Settings tile instead — no overlay permission needed." />
+
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="Capture &amp; overlay">
 
         <SwitchPreference
@@ -192,7 +207,7 @@
         <Preference
             android:key="version"
             android:title="Version"
-            android:summary="1.5.2" />
+            android:summary="1.5.4" />
 
         <Preference
             android:key="about"

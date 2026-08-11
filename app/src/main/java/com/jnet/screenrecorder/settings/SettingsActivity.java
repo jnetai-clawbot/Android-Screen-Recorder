@@ -232,6 +232,32 @@ public class SettingsActivity extends AppCompatActivity {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            if ("graphene_mode".equals(key)) {
+                boolean grapheneOn = sharedPreferences.getBoolean("graphene_mode", false);
+                if (grapheneOn) {
+                    // GrapheneOS-compatible mode: overlay bubble is blocked, so turn
+                    // off overlay mode and rely on notification-bar controls + QS tile
+                    // (all no-overlay). Never crash.
+                    sharedPreferences.edit().putBoolean("overlay_mode", false).apply();
+                    try {
+                        getActivity().stopService(new Intent(getActivity(),
+                                com.jnet.screenrecorder.overlay.BubbleService.class));
+                    } catch (Exception ignored) {
+                    }
+                    // Bring up the notification-bar controls (Start/Stop/Screenshot) —
+                    // these work without overlay on GrapheneOS.
+                    if (!com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+                        startNotificationBarSafe(getActivity(), 0);
+                    }
+                    Toast.makeText(getActivity(),
+                            "Graphene mode: use the notification (Start/Stop/Screenshot) and the QS tile — no overlay needed",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    // Leaving Graphene mode: stop the notification-bar service (overlay
+                    // bubble remains available via overlay_mode as before).
+                    stopNotificationBar(getActivity());
+                }
+            }
             if ("show_screenshot_button".equals(key)) {
                 // toggle screenshot visibility — handled by bubble on next open
             }

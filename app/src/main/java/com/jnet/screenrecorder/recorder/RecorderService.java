@@ -618,12 +618,23 @@ public class RecorderService extends Service {
                 .setOngoing(true);
 
         if (mRecording) {
-            // Recording → show a STOP toggle
+            // Recording → show a STOP toggle + a SCREENSHOT button (no overlay needed)
             Intent stopIntent = new Intent(this, RecorderService.class).setAction(ACTION_STOP);
             PendingIntent stopPending = PendingIntent.getService(
                     this, 1, stopIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             builder.addAction(R.drawable.ic_stop, getString(R.string.stop_recording), stopPending);
+
+            // Screenshot button in the notification — works without overlay permission,
+            // ideal for GrapheneOS / hardened devices where floating bubbles are blocked.
+            if (getSharedPreferences("settings", MODE_PRIVATE)
+                    .getBoolean("show_screenshot_button", true)) {
+                Intent shotIntent = new Intent(this, RecorderService.class).setAction(ACTION_SCREENSHOT);
+                PendingIntent shotPending = PendingIntent.getService(
+                        this, 3, shotIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                builder.addAction(R.drawable.ic_camera, getString(R.string.take_screenshot), shotPending);
+            }
         } else {
             // Idle → show a START toggle (routes through MainActivity for screen-capture permission)
             Intent startIntent = new Intent(this, com.jnet.screenrecorder.MainActivity.class)
