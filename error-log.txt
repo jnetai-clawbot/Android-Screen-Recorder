@@ -1,0 +1,92 @@
+on google pixel 6 on android 17 graphene os android recording app overlay permissions not allowed need alternative to make controls be visable for start / stop recording!
+
+error log
+
+[2026-08-11 22:39:37] [ERROR] toggle QS tile error
+java.lang.NullPointerException
+ at java.util.Objects.throwNullPointerException(Objects.java:504)
+ at java.util.Objects.requireNonNull(Objects.java:222)
+ at android.app.StatusBarManager.requestAddTileService(StatusBarManager.java:1141)
+ at com.jnet.screenrecorder.settings.SettingsActivity$SettingsFragment.toggleQsTile(SettingsActivity.java:427)
+ at com.jnet.screenrecorder.settings.SettingsActivity$SettingsFragment.onSharedPreferenceChanged(SettingsActivity.java:274)
+ at android.app.SharedPreferencesImpl$EditorImpl.notifyListeners(SharedPreferencesImpl.java:647)
+ at android.app.SharedPreferencesImpl$EditorImpl.apply(SharedPreferencesImpl.java:521)
+ at android.preference.Preference.tryCommit(Preference.java:1621)
+ at android.preference.Preference.persistBoolean(Preference.java:1925)
+ at android.preference.TwoStatePreference.setChecked(TwoStatePreference.java:89)
+ at android.preference.TwoStatePreference.onClick(TwoStatePreference.java:74)
+ at android.preference.Preference.performClick(Preference.java:1163)
+ at android.preference.PreferenceScreen.onItemClick(PreferenceScreen.java:279)
+ at android.widget.AdapterView.performItemClick(AdapterView.java:330)
+ at android.widget.AbsListView.performItemClick(AbsListView.java:1302)
+ at android.widget.AbsListView$PerformClick.run(AbsListView.java:3369)
+ at android.widget.AbsListView$3.run(AbsListView.java:4348)
+ at android.os.Handler.handleCallback(Handler.java:1095)
+ at android.os.Handler.dispatchMessageImpl(Handler.java:135)
+ at android.os.Handler.dispatchMessage(Handler.java:125)
+ at android.os.Looper.loopOnce(Looper.java:296)
+ at android.os.Looper.loop(Looper.java:397)
+ at android.app.ActivityThread.main(ActivityThread.java:9569)
+ at java.lang.reflect.Method.invoke(Native Method)
+ at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)
+ at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:975)
+
+[2026-08-11 22:39:41] [INFO] Bubbles API mode (no overlay permission needed)
+
+
+=== J~Net Screen Recorder Crash Report ===
+Time: 2026-08-11 22:39:41
+Thread: main
+Device: Google Pixel 6
+Android: 17 (API 37)
+App version: 1.5.8
+
+Exception: android.app.RemoteServiceException$CannotPostForegroundServiceNotificationException: Bad notification for startForeground
+
+android.app.RemoteServiceException$CannotPostForegroundServiceNotificationException: Bad notification for startForeground
+ at android.app.ActivityThread.throwRemoteServiceException(ActivityThread.java:2579)
+ at android.app.ActivityThread.-$$Nest$mthrowRemoteServiceException(ActivityThread.java:0)
+ at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2960)
+ at android.os.Handler.dispatchMessageImpl(Handler.java:142)
+ at android.os.Handler.dispatchMessage(Handler.java:125)
+ at android.os.Looper.loopOnce(Looper.java:296)
+ at android.os.Looper.loop(Looper.java:397)
+ at android.app.ActivityThread.main(ActivityThread.java:9569)
+ at java.lang.reflect.Method.invoke(Native Method)
+ at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)
+ at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:975)
+[2026-08-11 22:39:57] [INFO] Bubbles API mode (no overlay permission needed)
+
+
+=== J~Net Screen Recorder Crash Report ===
+Time: 2026-08-11 22:39:57
+Thread: main
+Device: Google Pixel 6
+Android: 17 (API 37)
+App version: 1.5.8
+
+Exception: android.app.RemoteServiceException$CannotPostForegroundServiceNotificationException: Bad notification for startForeground
+
+android.app.RemoteServiceException$CannotPostForegroundServiceNotificationException: Bad notification for startForeground
+ at android.app.ActivityThread.throwRemoteServiceException(ActivityThread.java:2579)
+ at android.app.ActivityThread.-$$Nest$mthrowRemoteServiceException(ActivityThread.java:0)
+at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2960)
+ at android.os.Handler.dispatchMessageImpl(Handler.java:142)
+ at android.os.Handler.dispatchMessage(Handler.java:125)
+ at android.os.Looper.loopOnce(Looper.java:296)
+ at android.os.Looper.loop(Looper.java:397)
+ at android.app.ActivityThread.main(ActivityThread.java:9569)
+ at java.lang.reflect.Method.invoke(Native Method)
+ at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)
+ at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:975)
+ 
+dont edit this file
+
+release as a new github release using github actions / workflows to build the apk
+
+## GitHub
+Public repo: **https://github.com/jnetai-clawbot/Android-Screen-Recorder**
+Latest release (APK download): **https://github.com/jnetai-clawbot/Android-Screen-Recorder/releases/latest**
+
+local project folder /home/jay/Documents/Scripts/AI/openclaw/Android-Screen-Recorder/
+

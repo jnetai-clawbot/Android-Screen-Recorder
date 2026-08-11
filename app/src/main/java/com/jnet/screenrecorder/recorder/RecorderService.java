@@ -613,9 +613,10 @@ public class RecorderService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.notification_title_recording))
                 .setContentText(text)
-                .setSmallIcon(R.drawable.rec_dot)
+                .setSmallIcon(R.drawable.ic_notification_dot)
                 .setContentIntent(contentIntent)
-                .setOngoing(true);
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE);
 
         if (mRecording) {
             // Recording → show a STOP toggle + a SCREENSHOT button (no overlay needed)

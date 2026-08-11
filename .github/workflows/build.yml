@@ -11,11 +11,11 @@ on:
       version_name:
         description: 'Version name (e.g. 1.0.0)'
         required: false
-        default: '1.5.8'
+        default: '1.5.9'
       version_code:
         description: 'Version code (integer)'
         required: false
-        default: '158'
+        default: '159'
 
 jobs:
   build:

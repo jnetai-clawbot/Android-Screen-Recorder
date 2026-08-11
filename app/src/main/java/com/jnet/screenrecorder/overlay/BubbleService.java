@@ -173,11 +173,11 @@ public class BubbleService extends Service {
     }
 
     private void startForegroundCompat(int id, Notification notification) {
-        // NOTE: do NOT use FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION here.
-        // The bubble service has no MediaProjection of its own — using that type
-        // without an active projection throws ForegroundServiceTypeException,
-        // which crashed the app the moment the bubble started after overlay grant.
-        startForeground(id, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(id, notification);
+        }
     }
 
     /**
@@ -692,9 +692,10 @@ public class BubbleService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText(getString(R.string.show_bubble))
-                .setSmallIcon(R.drawable.rec_dot)
+                .setSmallIcon(R.drawable.ic_notification_dot)
                 .setContentIntent(contentIntent)
-                .setOngoing(true);
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_SERVICE);
 
         // Android 11+ (API 30+): use the Bubbles API so the floating bubble is
         // system-managed and floats over other apps WITHOUT needing SYSTEM_ALERT_WINDOW
