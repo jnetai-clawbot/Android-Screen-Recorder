@@ -335,10 +335,8 @@ public class BubbleService extends Service {
         });
         btnClose.setOnClickListener(v -> stopSelf());
 
-        // Show the separate draggable screenshot bubble (if enabled)
-        if (showScreenshot) {
-            showScreenshotBubble();
-        }
+        // The screenshot bubble is intentionally NOT shown automatically. The user
+        // opens the main bubble and taps the camera button to show/hide it.
 
         mExpandedView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
@@ -511,9 +509,8 @@ public class BubbleService extends Service {
     }
 
     private void showScreenshotBubble() {
-        // Add a separate draggable screenshot bubble. This should show whenever the
-        // screenshot toggle is tapped, regardless of overlay_mode, so the camera
-        // bubble always appears for one-tap screenshots.
+        // A separate draggable camera bubble, shown only when the user taps the
+        // camera button inside the expanded main bubble.
         try {
             LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             if (mScreenshotBubble != null) return;
@@ -521,17 +518,10 @@ public class BubbleService extends Service {
             ImageButton btn = mScreenshotBubble.findViewById(R.id.btn_bubble);
             btn.setImageResource(R.drawable.ic_camera);
             btn.getBackground().mutate().setTint(0xE62E7D32); // green
-            // Make BOTH the camera icon and the bubble around it clickable.
-            // The ImageButton handles the tap (screenshot); the FrameLayout handles
-            // dragging. This way tapping anywhere on the bubble works.
             btn.setClickable(true);
             btn.setFocusable(true);
-            btn.setOnClickListener(v -> takeScreenshot());
-            mScreenshotBubble.setClickable(true);
-            mScreenshotBubble.setFocusable(true);
-            mScreenshotBubble.setFocusableInTouchMode(true);
 
-            WindowManager.LayoutParams sp = new WindowManager.LayoutParams(
+            final WindowManager.LayoutParams sp = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
@@ -543,28 +533,42 @@ public class BubbleService extends Service {
             sp.x = getSharedPreferences("screenrecorder", MODE_PRIVATE).getInt("shot_x", 100);
             sp.y = getSharedPreferences("screenrecorder", MODE_PRIVATE).getInt("shot_y", 500);
 
-            mScreenshotBubble.setOnTouchListener((v, event) -> {
-                switch (event.getAction()) {
+            // Handle drag AND tap on the camera button itself. The ImageButton is the
+            // view that receives touches, so listening on the parent FrameLayout would
+            // never see the drag events (that was why it could not be moved).
+            btn.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        mShotStartX = event.getRawX(); mShotStartY = event.getRawY();
-                        mShotBaseX = sp.x; mShotBaseY = sp.y; mShotDragging = false;
+                        mShotStartX = event.getRawX();
+                        mShotStartY = event.getRawY();
+                        mShotBaseX = sp.x;
+                        mShotBaseY = sp.y;
+                        mShotDragging = false;
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         float dx = event.getRawX() - mShotStartX;
                         float dy = event.getRawY() - mShotStartY;
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
                             mShotDragging = true;
-                            sp.x = mShotBaseX + (int) dx; sp.y = mShotBaseY + (int) dy;
-                            try { mWindowManager.updateViewLayout(mScreenshotBubble, sp); } catch (Exception ignored) {}
+                        }
+                        if (mShotDragging) {
+                            sp.x = mShotBaseX + (int) dx;
+                            sp.y = mShotBaseY + (int) dy;
+                            try {
+                                mWindowManager.updateViewLayout(mScreenshotBubble, sp);
+                            } catch (Exception ignored) {
+                            }
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
-                        // Only save the drag position if we actually dragged; the
-                        // tap-to-screenshot is handled by the ImageButton click.
                         if (mShotDragging) {
                             getSharedPreferences("screenrecorder", MODE_PRIVATE).edit()
                                     .putInt("shot_x", sp.x).putInt("shot_y", sp.y).apply();
+                        } else {
+                            takeScreenshot();
                         }
+                        return true;
+                    case MotionEvent.ACTION_CANCEL:
                         return true;
                 }
                 return false;

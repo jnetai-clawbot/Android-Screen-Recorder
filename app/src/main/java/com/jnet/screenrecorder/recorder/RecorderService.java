@@ -74,8 +74,10 @@ public class RecorderService extends Service {
     private Handler mHandler;
     private boolean mRecording = false;
     private boolean mPendingStart = false;
+    private boolean mStopping = false;
     private int mPendingDelayRemaining = 0;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private MediaProjection.Callback mProjectionCallback;
     private File mOutputFile;
     private Uri mOutputUri;
 
@@ -115,6 +117,34 @@ public class RecorderService extends Service {
 
     public static boolean isRecording() {
         return sMediaProjection != null;
+    }
+
+    /**
+     * Android 14+ requires a MediaProjection.Callback to be registered before the
+     * first createVirtualDisplay() call, otherwise it throws
+     * "Must register a callback before starting capture". This must be done for
+     * both recording and screenshot-only projections.
+     */
+    private void registerProjectionCallback() {
+        if (mMediaProjection == null) {
+            return;
+        }
+        try {
+            if (mProjectionCallback == null) {
+                mProjectionCallback = new MediaProjection.Callback() {
+                    @Override
+                    public void onStop() {
+                        com.jnet.screenrecorder.ErrorLog.i("MediaProjection stopped (user or system)");
+                        if (mRecording && !mStopping) {
+                            mMainHandler.post(RecorderService.this::stopRecording);
+                        }
+                    }
+                };
+            }
+            mMediaProjection.registerCallback(mProjectionCallback, mMainHandler);
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not register projection callback", e);
+        }
     }
 
     @Override
@@ -214,6 +244,8 @@ public class RecorderService extends Service {
 
         try {
             mMediaProjection = mProjectionManager.getMediaProjection(sResultCode, sResultData);
+            mStopping = false;
+            registerProjectionCallback();
         } catch (Exception e) {
             com.jnet.screenrecorder.ErrorLog.e("Failed to get media projection", e);
             Log.e(TAG, "Failed to get media projection", e);
@@ -335,12 +367,33 @@ public class RecorderService extends Service {
             return;
         }
 
-        mVirtualDisplay = mMediaProjection.createVirtualDisplay(
-                "ScreenRecorder",
-                width, height, dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                mMediaRecorder.getSurface(),
-                null, null);
+        try {
+            mVirtualDisplay = mMediaProjection.createVirtualDisplay(
+                    "ScreenRecorder",
+                    width, height, dpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    mMediaRecorder.getSurface(),
+                    null, null);
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("createVirtualDisplay failed", e);
+            Log.e(TAG, "createVirtualDisplay failed", e);
+            try {
+                mMediaRecorder.release();
+            } catch (Exception ignored) {
+            }
+            mMediaRecorder = null;
+            if (mMediaProjection != null) {
+                try {
+                    mMediaProjection.stop();
+                } catch (Exception ignored) {
+                }
+                mMediaProjection = null;
+            }
+            Toast.makeText(this, "Could not start screen capture", Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return;
+        }
 
         // DRM capture: if the user enabled "Record DRM-protected content", try to
         // disable the secure flag so protected surfaces (Clapper, own content) are
@@ -525,6 +578,7 @@ public class RecorderService extends Service {
     private void stopRecording() {
         if (!mRecording) return;
 
+        mStopping = true;
         mPendingStart = false;
         mMainHandler.removeCallbacksAndMessages(null);
 
@@ -633,10 +687,13 @@ public class RecorderService extends Service {
     }
 
     private void captureScreenshot(boolean temporaryProjection) {
+        boolean acquiredNewProjection = false;
         if (mMediaProjection == null) {
             try {
                 mMediaProjection = mProjectionManager.getMediaProjection(
                         getProjectionResultCode(), getProjectionData());
+                mStopping = false;
+                acquiredNewProjection = true;
             } catch (Exception e) {
                 com.jnet.screenrecorder.ErrorLog.e("Screenshot projection error", e);
                 Toast.makeText(this, "Screenshot needs fresh screen access — tap screenshot again",
@@ -644,6 +701,11 @@ public class RecorderService extends Service {
                 finishScreenshot(temporaryProjection);
                 return;
             }
+        }
+        // Required on Android 14+ before createVirtualDisplay(). Only needed for a
+        // newly acquired projection; an active recording already has one registered.
+        if (acquiredNewProjection) {
+            registerProjectionCallback();
         }
 
         // Hide the floating bubbles so they are not part of the screenshot.
@@ -657,11 +719,21 @@ public class RecorderService extends Service {
         int dpi = metrics.densityDpi;
 
         final ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
-        VirtualDisplay vd = mMediaProjection.createVirtualDisplay(
-                "ScreenshotDisplay",
-                width, height, dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader.getSurface(), null, null);
+        VirtualDisplay vd;
+        try {
+            vd = mMediaProjection.createVirtualDisplay(
+                    "ScreenshotDisplay",
+                    width, height, dpi,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                    imageReader.getSurface(), null, null);
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Screenshot createVirtualDisplay failed", e);
+            imageReader.close();
+            Toast.makeText(this, "Screenshot failed — tap screenshot again", Toast.LENGTH_LONG).show();
+            sendBubbleAction(com.jnet.screenrecorder.overlay.BubbleService.ACTION_SHOW_BUBBLES);
+            finishScreenshot(temporaryProjection);
+            return;
+        }
 
         HandlerThread ht = new HandlerThread("screenshot");
         ht.start();
