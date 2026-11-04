@@ -158,6 +158,22 @@
             android:summary="Toggle the screenshot capture option in the bubble"
             android:defaultValue="true" />
 
+        <EditTextPreference
+            android:key="start_delay_seconds"
+            android:title="Start recording delay (seconds)"
+            android:summary="Wait this long after granting screen capture before recording starts, so you can switch apps. Default: 0"
+            android:defaultValue="0"
+            android:inputType="number"
+            android:dialogTitle="Start delay (seconds)" />
+
+        <EditTextPreference
+            android:key="screenshot_delay_seconds"
+            android:title="Screenshot delay (seconds)"
+            android:summary="Wait this long before taking a screenshot, so you can switch to the app you want. Default: 3"
+            android:defaultValue="3"
+            android:inputType="number"
+            android:dialogTitle="Screenshot delay (seconds)" />
+
         <SwitchPreference
             android:key="record_streams"
             android:title="Record streaming video (non-DRM)"
@@ -180,6 +196,20 @@
             android:key="drm_note"
             android:title="About DRM-protected content"
             android:summary="Netflix, Prime Video, Disney+ and other DRM apps cannot be recorded — the OS blocks capture at the hardware level." />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Backup">
+
+        <Preference
+            android:key="export_settings"
+            android:title="Export settings (JSON)"
+            android:summary="Save all settings to a .json backup file" />
+
+        <Preference
+            android:key="import_settings"
+            android:title="Import settings (JSON)"
+            android:summary="Load settings from a .json backup file" />
 
     </PreferenceCategory>
 

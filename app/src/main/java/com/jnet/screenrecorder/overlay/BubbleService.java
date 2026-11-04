@@ -61,6 +61,9 @@ public class BubbleService extends Service {
     private static final int NOTIF_ID = 2;
     private static final int REQUEST_CAPTURE = 1002;
 
+    public static final String ACTION_HIDE_BUBBLES = "com.jnet.screenrecorder.HIDE_BUBBLES";
+    public static final String ACTION_SHOW_BUBBLES = "com.jnet.screenrecorder.SHOW_BUBBLES";
+
     private WindowManager mWindowManager;
     private View mBubbleView;        // the small circular bubble
     private View mExpandedView;      // the expanded panel with buttons
@@ -145,6 +148,7 @@ public class BubbleService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.jnet.screenrecorder.Prefs.migrate(this);
         sRunning = true;
         mWindowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
@@ -154,47 +158,32 @@ public class BubbleService extends Service {
         // startForegroundService(); adding overlay windows first can crash the
         // service (ForegroundServiceTypeException / BadTokenException).
         startForegroundCompat(NOTIF_ID, buildNotification());
-        // Android 11+ (API 30+): the Bubbles API floats the bubble over other apps
-        // WITHOUT needing SYSTEM_ALERT_WINDOW overlay permission — this is the primary
-        // no-overlay bubble route. The notification above carries BubbleMetadata, so
-        // the system renders the bubble and hosts BubbleActivity. We do NOT need to
-        // add overlay views ourselves here.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            com.jnet.screenrecorder.ErrorLog.i("Bubbles API mode (no overlay permission needed)");
-            return;
-        }
-        // Android 10 and below (or overlay already granted as a fallback): use the
-        // manual SYSTEM_ALERT_WINDOW bubble. Only create it if overlay is granted.
-        if (Settings.canDrawOverlays(this)) {
+
+        boolean overlayGranted = Settings.canDrawOverlays(this);
+        if (overlayGranted) {
+            // The user explicitly granted "Display over other apps" — always draw the
+            // real draggable bubble ourselves. This works on every Android version and
+            // is the most reliable path (previously API 30+ skipped it and only used
+            // the system Bubbles API, which many devices/GrapheneOS silently suppress).
+            com.jnet.screenrecorder.ErrorLog.i("Drawing manual overlay bubble (permission granted)");
             createBubble();
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // No overlay permission: fall back to the system Bubbles API via the
+            // notification's BubbleMetadata. May be blocked on hardened ROMs, in which
+            // case the notification controls still work.
+            com.jnet.screenrecorder.ErrorLog.i("No overlay permission - using Bubbles API notification");
         } else {
-            com.jnet.screenrecorder.ErrorLog.i("Overlay permission not granted - notification bar only");
+            com.jnet.screenrecorder.ErrorLog.i("No overlay permission - notification bar only");
         }
     }
 
     private void startForegroundCompat(int id, Notification notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // SPECIAL_USE only exists from Android 14 (API 34). On older versions the
+        // two-argument call uses the manifest type (or none) and never throws.
+        if (Build.VERSION.SDK_INT >= 34) {
             startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
             startForeground(id, notification);
-        }
-    }
-
-    /**
-     * Temporarily re-foregrounds the bubble service with the MEDIA_PROJECTION type,
-     * which Android 10+ requires before getMediaProjection() can be called.
-     * Called only while taking a screenshot.
-     */
-    private void startForegroundWithProjectionType() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIF_ID, buildNotification(),
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
-            } else {
-                startForeground(NOTIF_ID, buildNotification());
-            }
-        } catch (Exception e) {
-            com.jnet.screenrecorder.ErrorLog.e("startForeground(projection type) failed", e);
         }
     }
 
@@ -204,6 +193,14 @@ public class BubbleService extends Service {
             String action = intent.getAction();
             if ("com.jnet.screenrecorder.REFRESH_BUBBLE".equals(action)) {
                 refreshFromSettings();
+                return START_STICKY;
+            }
+            if (ACTION_HIDE_BUBBLES.equals(action)) {
+                hideBubblesForScreenshot();
+                return START_STICKY;
+            }
+            if (ACTION_SHOW_BUBBLES.equals(action)) {
+                showBubblesAfterScreenshot();
                 return START_STICKY;
             }
             if (RecorderService.isRecording()) {
@@ -316,7 +313,7 @@ public class BubbleService extends Service {
         ImageButton btnClose = mExpandedView.findViewById(R.id.btn_close);
 
         // Respect "show screenshot button" setting
-        boolean showScreenshot = getSharedPreferences("settings", MODE_PRIVATE)
+        boolean showScreenshot = com.jnet.screenrecorder.Prefs.get(this)
                 .getBoolean("show_screenshot_button", true);
         btnScreenshot.setVisibility(showScreenshot ? View.VISIBLE : View.GONE);
 
@@ -338,8 +335,10 @@ public class BubbleService extends Service {
         });
         btnClose.setOnClickListener(v -> stopSelf());
 
-        // Show the separate draggable screenshot bubble (if overlay mode is on)
-        showScreenshotBubble();
+        // Show the separate draggable screenshot bubble (if enabled)
+        if (showScreenshot) {
+            showScreenshotBubble();
+        }
 
         mExpandedView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
@@ -419,91 +418,37 @@ public class BubbleService extends Service {
     }
 
     private void takeScreenshot() {
-        if (!RecorderService.hasProjection()) {
-            // No screen-capture permission yet — request it via MainActivity, then
-            // the user taps the camera bubble again to take the screenshot.
-            Toast.makeText(this, "Grant screen capture first", Toast.LENGTH_LONG).show();
+        int delay = com.jnet.screenrecorder.Prefs.getScreenshotDelaySeconds(this);
+        if (RecorderService.isRecording()) {
+            // Reuse the live projection — no new consent prompt needed.
+            Intent shot = new Intent(this, RecorderService.class)
+                    .setAction(RecorderService.ACTION_SCREENSHOT)
+                    .putExtra(RecorderService.EXTRA_DELAY_SECONDS, delay);
             try {
-                Intent mainIntent = new Intent(this, MainActivity.class)
-                        .setAction(MainActivity.ACTION_REQUEST_SCREENSHOT)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(mainIntent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(shot);
+                } else {
+                    startService(shot);
+                }
+                Toast.makeText(this, delay > 0
+                        ? "Screenshot in " + delay + "s" : "Taking screenshot",
+                        Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                com.jnet.screenrecorder.ErrorLog.e("Could not request screenshot permission", e);
+                com.jnet.screenrecorder.ErrorLog.e("Could not start screenshot", e);
             }
             return;
         }
-        // Hide both bubbles so they don't appear in the screenshot.
-        hideBubblesForScreenshot();
-        if (mMediaProjection == null) {
-            try {
-                // Android 10+ requires the service to be a foreground service of type
-                // FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION before getMediaProjection().
-                // The bubble normally runs WITHOUT that type (to avoid a crash on start),
-                // so temporarily re-foreground with the mediaProjection type here.
-                startForegroundWithProjectionType();
-                mMediaProjection = mProjectionManager.getMediaProjection(
-                        RecorderService.getProjectionResultCode(),
-                        RecorderService.getProjectionData());
-            } catch (Exception e) {
-                com.jnet.screenrecorder.ErrorLog.e("Screenshot projection error", e);
-                Log.e(TAG, "Screenshot projection error", e);
-                Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show();
-                return;
-            }
+
+        // Not recording: ask for fresh screen-capture consent via MainActivity.
+        // MainActivity will wait the configured delay and capture automatically.
+        try {
+            Intent mainIntent = new Intent(this, MainActivity.class)
+                    .setAction(MainActivity.ACTION_REQUEST_SCREENSHOT)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(mainIntent);
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not request screenshot permission", e);
         }
-
-        DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int width = metrics.widthPixels;
-        int height = metrics.heightPixels;
-        int dpi = metrics.densityDpi;
-
-        ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2);
-        android.hardware.display.VirtualDisplay vd = mMediaProjection.createVirtualDisplay(
-                "ScreenshotDisplay",
-                width, height, dpi,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-                imageReader.getSurface(), null, null);
-
-        HandlerThread ht = new HandlerThread("screenshot");
-        ht.start();
-        Handler h = new Handler(ht.getLooper());
-
-        imageReader.setOnImageAvailableListener(reader -> {
-            Image image = null;
-            try {
-                image = reader.acquireLatestImage();
-                if (image != null) {
-                    int w = image.getWidth();
-                    int hgt = image.getHeight();
-                    Image.Plane[] planes = image.getPlanes();
-                    ByteBuffer buffer = planes[0].getBuffer();
-                    int pixelStride = planes[0].getPixelStride();
-                    int rowStride = planes[0].getRowStride();
-                    int rowPadding = rowStride - pixelStride * w;
-
-                    android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
-                            w + rowPadding / pixelStride, hgt, android.graphics.Bitmap.Config.ARGB_8888);
-                    bmp.copyPixelsFromBuffer(buffer);
-                    android.graphics.Bitmap cropped = android.graphics.Bitmap.createBitmap(bmp, 0, 0, w, hgt);
-                    bmp.recycle();
-                    saveScreenshot(cropped);
-                    // Re-show the bubbles now that the screenshot has been captured.
-                    showBubblesAfterScreenshot();
-                }
-            } catch (Exception e) {
-                com.jnet.screenrecorder.ErrorLog.e("Screenshot capture failed", e);
-                Log.e(TAG, "Screenshot failed", e);
-            } finally {
-                if (image != null) image.close();
-            }
-        }, h);
-
-        h.postDelayed(() -> {
-            vd.release();
-            imageReader.close();
-            ht.quitSafely();
-        }, 400);
     }
 
     /** Toggles the camera screenshot bubble on/off. */
@@ -526,8 +471,15 @@ public class BubbleService extends Service {
         }
     }
 
-    /** Hides both the main bubble and the screenshot bubble so they don't appear in a screenshot. */
+    /** Hides all overlay views so they don't appear in a screenshot. */
     private void hideBubblesForScreenshot() {
+        if (mExpanded && mExpandedView != null) {
+            try {
+                mWindowManager.removeView(mExpandedView);
+            } catch (Exception ignored) {
+            }
+            mExpanded = false;
+        }
         try {
             if (mBubbleView != null) mWindowManager.removeView(mBubbleView);
         } catch (Exception ignored) {
@@ -701,7 +653,7 @@ public class BubbleService extends Service {
         // system-managed and floats over other apps WITHOUT needing SYSTEM_ALERT_WINDOW
         // overlay permission. The system provides the bubble and handles dragging; it
         // hosts BubbleActivity which holds the record/stop/screenshot/settings controls.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Settings.canDrawOverlays(this)) {
             try {
                 Intent bubbleIntent = new Intent(this, BubbleActivity.class);
                 PendingIntent bubblePi = PendingIntent.getActivity(

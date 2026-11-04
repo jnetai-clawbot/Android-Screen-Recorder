@@ -30,6 +30,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -60,7 +61,8 @@ public class RecorderService extends Service {
     private static final int NOTIF_ID = 1;
     public static final String ACTION_START = "com.jnet.screenrecorder.START";
     public static final String ACTION_STOP = "com.jnet.screenrecorder.STOP";
-    private static final String ACTION_SCREENSHOT = "com.jnet.screenrecorder.SCREENSHOT";
+    public static final String ACTION_SCREENSHOT = "com.jnet.screenrecorder.SCREENSHOT";
+    public static final String EXTRA_DELAY_SECONDS = "delay_seconds";
 
     private static final int SCREENSHOT_CODE = 2001;
 
@@ -71,6 +73,9 @@ public class RecorderService extends Service {
     private HandlerThread mHandlerThread;
     private Handler mHandler;
     private boolean mRecording = false;
+    private boolean mPendingStart = false;
+    private int mPendingDelayRemaining = 0;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private File mOutputFile;
     private Uri mOutputUri;
 
@@ -115,6 +120,7 @@ public class RecorderService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.jnet.screenrecorder.Prefs.migrate(this);
         mProjectionManager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
         createNotificationChannel();
     }
@@ -125,16 +131,22 @@ public class RecorderService extends Service {
 
         String action = intent.getAction();
         if (ACTION_STOP.equals(action)) {
-            stopRecording();
+            cancelPendingStart();
+            if (mRecording) {
+                stopRecording();
+            } else {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+                stopSelf();
+            }
             return START_NOT_STICKY;
         }
 
         if (ACTION_SCREENSHOT.equals(action)) {
-            takeScreenshot();
+            takeScreenshotDelayed(intent.getIntExtra(EXTRA_DELAY_SECONDS, 0));
             return START_NOT_STICKY;
         }
 
-        if (ACTION_START.equals(action) && !mRecording) {
+        if (ACTION_START.equals(action) && !mRecording && !mPendingStart) {
             int resultCode = intent.getIntExtra("resultCode", -1);
             Intent data = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     ? intent.getParcelableExtra("data", Intent.class)
@@ -150,7 +162,7 @@ public class RecorderService extends Service {
             }
             if (data != null) {
                 setMediaProjection(resultCode, data);
-                startRecording();
+                startRecording(intent.getIntExtra(EXTRA_DELAY_SECONDS, 0));
             } else {
                 com.jnet.screenrecorder.ErrorLog.e("Start recording: screen capture permission not granted");
                 Toast.makeText(this, "Screen capture permission not granted", Toast.LENGTH_LONG).show();
@@ -181,26 +193,89 @@ public class RecorderService extends Service {
         return new File(dir, name);
     }
 
-    private void startRecording() {
+    private void startRecording(int delaySeconds) {
         if (mMediaProjection != null) {
             stopRecording();
+        }
+        if (!hasProjection()) {
+            Toast.makeText(this, "Screen capture permission not granted", Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return;
         }
 
         // IMPORTANT: on Android 10+, getMediaProjection() requires the service to
         // already be running as a FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION service.
         // Call startForeground() with that type BEFORE requesting the projection,
         // otherwise it throws SecurityException.
-        startForegroundCompat(NOTIF_ID, buildNotification("Starting recording..."));
+        startForegroundCompat(NOTIF_ID, buildNotification(delaySeconds > 0
+                ? "Recording starts in " + delaySeconds + "s..."
+                : "Starting recording..."));
 
         try {
             mMediaProjection = mProjectionManager.getMediaProjection(sResultCode, sResultData);
-            // Keep the static reference in sync so isRecording() reports the real
-            // state (the bubble uses it to show Record vs Stop and to stop correctly).
-            sMediaProjection = mMediaProjection;
         } catch (Exception e) {
             com.jnet.screenrecorder.ErrorLog.e("Failed to get media projection", e);
             Log.e(TAG, "Failed to get media projection", e);
-            Toast.makeText(this, "Failed to start recording", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Failed to start recording — tap Start again to grant screen access",
+                    Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return;
+        }
+
+        if (delaySeconds > 0) {
+            mPendingStart = true;
+            mPendingDelayRemaining = delaySeconds;
+            startStartCountdown();
+        } else {
+            beginRecorder();
+        }
+    }
+
+    /** Counts down the start delay, updating the ongoing notification each second. */
+    private void startStartCountdown() {
+        mMainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (!mPendingStart) {
+                    return;
+                }
+                if (mPendingDelayRemaining <= 0) {
+                    mPendingStart = false;
+                    beginRecorder();
+                    return;
+                }
+                NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                if (nm != null) {
+                    nm.notify(NOTIF_ID, buildNotification("Recording starts in "
+                            + mPendingDelayRemaining + "s — switch to your app"));
+                }
+                mPendingDelayRemaining--;
+                mMainHandler.postDelayed(this, 1000);
+            }
+        });
+    }
+
+    /** Cancels a pending delayed start (e.g. the user pressed Stop in the delay). */
+    private void cancelPendingStart() {
+        mPendingStart = false;
+        mMainHandler.removeCallbacksAndMessages(null);
+        if (!mRecording && mMediaProjection != null) {
+            try {
+                mMediaProjection.stop();
+            } catch (Exception ignored) {
+            }
+            mMediaProjection = null;
+        }
+    }
+
+    /** Sets up MediaRecorder + the virtual display and begins writing the MP4. */
+    private void beginRecorder() {
+        if (mMediaProjection == null) {
+            Toast.makeText(this, "Screen capture permission lost — tap Start again", Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
             return;
         }
 
@@ -251,9 +326,12 @@ public class RecorderService extends Service {
             com.jnet.screenrecorder.ErrorLog.e("MediaRecorder prepare failed", e);
             Log.e(TAG, "MediaRecorder prepare failed", e);
             mMediaRecorder.release();
+            mMediaRecorder = null;
             mMediaProjection.stop();
             mMediaProjection = null;
             Toast.makeText(this, "Failed to prepare recorder", Toast.LENGTH_SHORT).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
             return;
         }
 
@@ -280,8 +358,32 @@ public class RecorderService extends Service {
             }
         }
 
+        sMediaProjection = mMediaProjection;
         mRecording = true;
-        mMediaRecorder.start();
+        try {
+            mMediaRecorder.start();
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("MediaRecorder start failed", e);
+            mRecording = false;
+            sMediaProjection = null;
+            try {
+                mMediaRecorder.release();
+            } catch (Exception ignored) {
+            }
+            mMediaRecorder = null;
+            if (mVirtualDisplay != null) {
+                mVirtualDisplay.release();
+                mVirtualDisplay = null;
+            }
+            if (mMediaProjection != null) {
+                mMediaProjection.stop();
+                mMediaProjection = null;
+            }
+            Toast.makeText(this, "Failed to start recording", Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return;
+        }
         startForegroundCompat(NOTIF_ID, buildNotification("● Recording"));
         showRecordingTimeBar();
         registerBatteryMonitor();
@@ -402,7 +504,7 @@ public class RecorderService extends Service {
      */
     private void showDrmNoteIfApplicable() {
         // Tips are OFF by default. Only show if the user enabled "Show tips" in Settings.
-        if (!getSharedPreferences("settings", MODE_PRIVATE)
+        if (!com.jnet.screenrecorder.Prefs.get(this)
                 .getBoolean("show_tips", false)) {
             return;
         }
@@ -422,6 +524,9 @@ public class RecorderService extends Service {
 
     private void stopRecording() {
         if (!mRecording) return;
+
+        mPendingStart = false;
+        mMainHandler.removeCallbacksAndMessages(null);
 
         try {
             if (mMediaRecorder != null) {
@@ -502,11 +607,47 @@ public class RecorderService extends Service {
         }
     }
 
-    private void takeScreenshot() {
-        if (mMediaProjection == null) {
-            Toast.makeText(this, "Start recording first, then screenshot", Toast.LENGTH_SHORT).show();
+    /**
+     * Takes a screenshot after a delay. If a recording is already running the live
+     * projection is reused. Otherwise this service temporarily owns the projection
+     * (it already runs as a mediaProjection foreground service) and stops itself
+     * once the image has been saved.
+     */
+    private void takeScreenshotDelayed(int delaySeconds) {
+        final boolean temporaryProjection = (mMediaProjection == null);
+        if (temporaryProjection && !hasProjection()) {
+            Toast.makeText(this, "Tap screenshot again to grant screen access", Toast.LENGTH_LONG).show();
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
             return;
         }
+        int delay = Math.max(0, delaySeconds);
+        if (temporaryProjection) {
+            startForegroundCompat(NOTIF_ID, buildNotification("Screenshot in " + delay + "s"));
+        }
+        if (delay > 0) {
+            Toast.makeText(this, "Screenshot in " + delay + "s — switch to the app now",
+                    Toast.LENGTH_LONG).show();
+        }
+        mMainHandler.postDelayed(() -> captureScreenshot(temporaryProjection), delay * 1000L);
+    }
+
+    private void captureScreenshot(boolean temporaryProjection) {
+        if (mMediaProjection == null) {
+            try {
+                mMediaProjection = mProjectionManager.getMediaProjection(
+                        getProjectionResultCode(), getProjectionData());
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Screenshot projection error", e);
+                Toast.makeText(this, "Screenshot needs fresh screen access — tap screenshot again",
+                        Toast.LENGTH_LONG).show();
+                finishScreenshot(temporaryProjection);
+                return;
+            }
+        }
+
+        // Hide the floating bubbles so they are not part of the screenshot.
+        sendBubbleAction(com.jnet.screenrecorder.overlay.BubbleService.ACTION_HIDE_BUBBLES);
 
         WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         DisplayMetrics metrics = new DisplayMetrics();
@@ -554,17 +695,70 @@ public class RecorderService extends Service {
             }
         }, h);
 
-        // Give it a moment to capture then cleanup
+        // Give it a moment to capture, then clean up and re-show the bubbles.
         h.postDelayed(() -> {
             vd.release();
             imageReader.close();
             ht.quitSafely();
-        }, 300);
+            sendBubbleAction(com.jnet.screenrecorder.overlay.BubbleService.ACTION_SHOW_BUBBLES);
+            finishScreenshot(temporaryProjection);
+        }, 500);
+    }
+
+    private void finishScreenshot(boolean temporaryProjection) {
+        if (!temporaryProjection) {
+            return;
+        }
+        if (mMediaProjection != null) {
+            try {
+                mMediaProjection.stop();
+            } catch (Exception ignored) {
+            }
+            mMediaProjection = null;
+        }
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopSelf();
+    }
+
+    private void sendBubbleAction(String action) {
+        if (!com.jnet.screenrecorder.overlay.BubbleService.isRunning()) {
+            return;
+        }
+        try {
+            startService(new Intent(this, com.jnet.screenrecorder.overlay.BubbleService.class)
+                    .setAction(action));
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Bubble action failed: " + action, e);
+        }
     }
 
     private void saveScreenshot(Bitmap bmp) {
-        File dir = getScreenshotsDir();
         String name = "SCR_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".png";
+        // Prefer MediaStore so the image appears in the Gallery under
+        // DCIM/ScreenRecorder/Screenshots on Android 10+.
+        try {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+            values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                    Environment.DIRECTORY_DCIM + "/ScreenRecorder/Screenshots");
+            Uri uri = getContentResolver().insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (uri != null) {
+                java.io.OutputStream out = getContentResolver().openOutputStream(uri);
+                if (out != null) {
+                    bmp.compress(Bitmap.CompressFormat.PNG, 100, out);
+                    out.close();
+                    bmp.recycle();
+                    Toast.makeText(this, "Screenshot saved", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("MediaStore screenshot failed, using fallback", e);
+        }
+        // Fallback: app-private screenshots dir (always writable)
+        File dir = getScreenshotsDir();
         File file = new File(dir, name);
         try (FileOutputStream fos = new FileOutputStream(file)) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, fos);
@@ -628,7 +822,7 @@ public class RecorderService extends Service {
 
             // Screenshot button in the notification — works without overlay permission,
             // ideal for GrapheneOS / hardened devices where floating bubbles are blocked.
-            if (getSharedPreferences("settings", MODE_PRIVATE)
+            if (com.jnet.screenrecorder.Prefs.get(this)
                     .getBoolean("show_screenshot_button", true)) {
                 Intent shotIntent = new Intent(this, RecorderService.class).setAction(ACTION_SCREENSHOT);
                 PendingIntent shotPending = PendingIntent.getService(

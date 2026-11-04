@@ -10,7 +10,10 @@ import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +24,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.jnet.screenrecorder.overlay.BubbleService;
+import com.jnet.screenrecorder.recorder.RecorderService;
 import com.jnet.screenrecorder.settings.SettingsActivity;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,9 +34,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_OVERLAY = 1001;
 
-    private MaterialButton btnOverlay, btnAudio, btnSettings;
-    private TextView tvOverlayStatus, tvAudioStatus;
+    private MaterialButton btnOverlay, btnAudio, btnSettings, btnToggleRecord, btnScreenshot;
+    private TextView tvOverlayStatus, tvAudioStatus, tvRecordStatus;
+    private EditText etShotDelay;
     private boolean mPendingScreenshot = false;
+    private int mPendingDelaySeconds = 0;
 
     private final ActivityResultLauncher<Intent> captureLauncher =
             registerForActivityResult(
@@ -41,27 +47,24 @@ public class MainActivity extends AppCompatActivity {
                         com.jnet.screenrecorder.ErrorLog.i("Capture result: code=" + result.getResultCode()
                                 + " (RESULT_OK=" + Activity.RESULT_OK + ") data=" + (result.getData() != null));
                         if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                            // Store the projection so screenshots can use it too.
-                            com.jnet.screenrecorder.recorder.RecorderService
-                                    .setMediaProjection(Activity.RESULT_OK, result.getData());
+                            // Store the projection so the service can use it.
+                            RecorderService.setMediaProjection(Activity.RESULT_OK, result.getData());
                             if (mPendingScreenshot) {
                                 // This capture was requested for a screenshot, not a recording.
                                 mPendingScreenshot = false;
                                 com.jnet.screenrecorder.ErrorLog.i("Screen capture granted for screenshot");
-                                Toast.makeText(this, "Screen capture granted — tap the camera bubble again", Toast.LENGTH_LONG).show();
-                                return;
-                            }
-                            Intent recIntent = new Intent(this,
-                                    com.jnet.screenrecorder.recorder.RecorderService.class)
-                                    .setAction(com.jnet.screenrecorder.recorder.RecorderService.ACTION_START)
-                                    .putExtra("resultCode", Activity.RESULT_OK)
-                                    .putExtra("data", result.getData());
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                startForegroundService(recIntent);
+                                startScreenshotService(mPendingDelaySeconds);
                             } else {
-                                startService(recIntent);
+                                Intent recIntent = new Intent(this, RecorderService.class)
+                                        .setAction(RecorderService.ACTION_START)
+                                        .putExtra("resultCode", Activity.RESULT_OK)
+                                        .putExtra("data", result.getData())
+                                        .putExtra(RecorderService.EXTRA_DELAY_SECONDS, mPendingDelaySeconds);
+                                startForegroundServiceCompat(recIntent);
+                                com.jnet.screenrecorder.ErrorLog.i("Starting recording service (delay="
+                                        + mPendingDelaySeconds + "s)");
+                                refreshRecordStatusSoon();
                             }
-                            com.jnet.screenrecorder.ErrorLog.i("Starting recording service");
                         } else {
                             mPendingScreenshot = false;
                             com.jnet.screenrecorder.ErrorLog.e("Screen capture denied: code=" + result.getResultCode()
@@ -92,23 +95,27 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Install the global crash handler so we can capture & copy the real error
         CrashHandler.install(this);
+        // Bring any settings from older versions into the single "screenrecorder" file.
+        Prefs.migrate(this);
         ThemeUtil.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Handle request coming from the bubble's Record button
-        if (getIntent() != null && ACTION_REQUEST_CAPTURE.equals(getIntent().getAction())) {
-            requestScreenCapture();
-        } else if (getIntent() != null && ACTION_REQUEST_SCREENSHOT.equals(getIntent().getAction())) {
-            mPendingScreenshot = true;
-            requestScreenCapture();
-        }
-
         btnOverlay = findViewById(R.id.btn_overlay);
         btnAudio = findViewById(R.id.btn_audio);
         btnSettings = findViewById(R.id.btn_settings);
+        btnToggleRecord = findViewById(R.id.btn_toggle_record);
+        btnScreenshot = findViewById(R.id.btn_screenshot);
         tvOverlayStatus = findViewById(R.id.tv_overlay_status);
         tvAudioStatus = findViewById(R.id.tv_audio_status);
+        tvRecordStatus = findViewById(R.id.tv_record_status);
+        etShotDelay = findViewById(R.id.et_shot_delay);
+
+        // Show the saved screenshot delay (seconds).
+        etShotDelay.setText(String.valueOf(Prefs.getScreenshotDelaySeconds(this)));
+
+        btnToggleRecord.setOnClickListener(v -> startOrStopRecording());
+        btnScreenshot.setOnClickListener(v -> takeScreenshotFromApp());
 
         btnOverlay.setOnClickListener(v -> {
             if (!Settings.canDrawOverlays(this)) {
@@ -124,6 +131,9 @@ public class MainActivity extends AppCompatActivity {
         btnAudio.setOnClickListener(v -> requestAudioPermission());
         btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
+
+        // Handle request coming from the bubble / notification / QS tile.
+        handleLaunchIntent(getIntent());
 
         // One-time permission onboarding: prompt for everything the app needs ONCE
         requestAllPermissionsIfFirstRun();
@@ -172,10 +182,26 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        if (intent != null && ACTION_REQUEST_CAPTURE.equals(intent.getAction())) {
+        handleLaunchIntent(intent);
+    }
+
+    /** Routes a service/notification/QS request through the screen-capture consent flow. */
+    private void handleLaunchIntent(Intent intent) {
+        if (intent == null || intent.getAction() == null) {
+            return;
+        }
+        if (ACTION_REQUEST_CAPTURE.equals(intent.getAction())) {
+            if (RecorderService.isRecording()) {
+                // Already recording — Start/Stop buttons act as Stop.
+                stopRecordingFromApp();
+                return;
+            }
+            mPendingScreenshot = false;
+            mPendingDelaySeconds = Prefs.getStartDelaySeconds(this);
             requestScreenCapture();
-        } else if (intent != null && ACTION_REQUEST_SCREENSHOT.equals(intent.getAction())) {
+        } else if (ACTION_REQUEST_SCREENSHOT.equals(intent.getAction())) {
             mPendingScreenshot = true;
+            mPendingDelaySeconds = Prefs.getScreenshotDelaySeconds(this);
             requestScreenCapture();
         }
     }
@@ -256,6 +282,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         updateOverlayStatus();
         updateAudioStatus();
+        updateRecordStatus();
         // NOTE: bubble is NOT auto-started on resume — overlay mode is off by
         // default and the user must enable it in Settings. This prevents the
         // crash that happened when the bubble service auto-started.
@@ -320,6 +347,110 @@ public class MainActivity extends AppCompatActivity {
             tvAudioStatus.setText("Audio: ✗ Not granted");
             tvAudioStatus.setTextColor(ContextCompat.getColor(this, R.color.red));
         }
+    }
+
+    /**
+     * The big Start/Stop toggle at the top of the screen. Starting always asks for
+     * screen-capture consent, then waits the configured start delay (default 0s)
+     * before recording so the user can switch to the app they want to record.
+     */
+    private void startOrStopRecording() {
+        if (RecorderService.isRecording()) {
+            stopRecordingFromApp();
+            return;
+        }
+        mPendingScreenshot = false;
+        mPendingDelaySeconds = Prefs.getStartDelaySeconds(this);
+        requestScreenCapture();
+    }
+
+    private void stopRecordingFromApp() {
+        try {
+            startService(new Intent(this, RecorderService.class)
+                    .setAction(RecorderService.ACTION_STOP));
+            Toast.makeText(this, "Stopping recording", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not stop recording", e);
+        }
+        refreshRecordStatusSoon();
+    }
+
+    /**
+     * Takes a screenshot after the delay entered on the main screen. If a recording
+     * is already running the screenshot uses the live projection; otherwise the
+     * user grants screen capture first and the delay starts right after.
+     */
+    private void takeScreenshotFromApp() {
+        int delay = parseDelayInput();
+        if (RecorderService.isRecording()) {
+            startScreenshotService(delay);
+            return;
+        }
+        mPendingScreenshot = true;
+        mPendingDelaySeconds = delay;
+        requestScreenCapture();
+    }
+
+    /** Reads and persists the delay from the EditText, clamped to 0-3600 seconds. */
+    private int parseDelayInput() {
+        int delay = Prefs.getScreenshotDelaySeconds(this);
+        try {
+            String raw = etShotDelay.getText().toString().trim();
+            if (!raw.isEmpty()) {
+                delay = Integer.parseInt(raw);
+            }
+        } catch (Exception ignored) {
+        }
+        delay = Prefs.clamp(delay, 0, 3600);
+        Prefs.get(this).edit().putString("screenshot_delay_seconds", String.valueOf(delay)).apply();
+        etShotDelay.setText(String.valueOf(delay));
+        return delay;
+    }
+
+    private void startScreenshotService(int delaySeconds) {
+        Intent intent = new Intent(this, RecorderService.class)
+                .setAction(RecorderService.ACTION_SCREENSHOT)
+                .putExtra(RecorderService.EXTRA_DELAY_SECONDS, delaySeconds);
+        startForegroundServiceCompat(intent);
+        if (delaySeconds > 0) {
+            Toast.makeText(this, "Screenshot in " + delaySeconds + "s — switch to the app now",
+                    Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "Taking screenshot", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startForegroundServiceCompat(Intent intent) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent);
+            } else {
+                startService(intent);
+            }
+        } catch (Exception e) {
+            com.jnet.screenrecorder.ErrorLog.e("Could not start recorder service", e);
+            Toast.makeText(this, "Could not start the recorder service", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void updateRecordStatus() {
+        if (tvRecordStatus == null || btnToggleRecord == null) {
+            return;
+        }
+        boolean recording = RecorderService.isRecording();
+        if (recording) {
+            btnToggleRecord.setText(R.string.stop_recording);
+            tvRecordStatus.setText("● Recording in progress");
+            tvRecordStatus.setTextColor(ContextCompat.getColor(this, R.color.red));
+        } else {
+            btnToggleRecord.setText(R.string.start_recording);
+            tvRecordStatus.setText("Ready to record");
+            tvRecordStatus.setTextColor(ContextCompat.getColor(this, R.color.green));
+        }
+    }
+
+    private void refreshRecordStatusSoon() {
+        new Handler(Looper.getMainLooper()).postDelayed(this::updateRecordStatus, 600);
     }
 
     private void requestScreenCapture() {

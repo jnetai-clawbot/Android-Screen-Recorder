@@ -41,7 +41,7 @@ public class BubbleActivity extends Activity {
         btnStop.setVisibility(recording ? android.view.View.VISIBLE : android.view.View.GONE);
 
         // Respect "show screenshot button" setting
-        boolean showScreenshot = getSharedPreferences("settings", MODE_PRIVATE)
+        boolean showScreenshot = com.jnet.screenrecorder.Prefs.get(this)
                 .getBoolean("show_screenshot_button", true);
         btnScreenshot.setVisibility(showScreenshot ? android.view.View.VISIBLE : android.view.View.GONE);
 
@@ -76,8 +76,19 @@ public class BubbleActivity extends Activity {
     }
 
     private void takeScreenshot() {
-        Intent shotIntent = new Intent(this, RecorderService.class)
-                .setAction("com.jnet.screenrecorder.SCREENSHOT");
-        startService(shotIntent);
+        int delay = com.jnet.screenrecorder.Prefs.getScreenshotDelaySeconds(this);
+        if (RecorderService.isRecording()) {
+            Intent shotIntent = new Intent(this, RecorderService.class)
+                    .setAction(RecorderService.ACTION_SCREENSHOT)
+                    .putExtra(RecorderService.EXTRA_DELAY_SECONDS, delay);
+            startService(shotIntent);
+            return;
+        }
+        // No live projection — ask for consent; MainActivity waits the delay and
+        // then captures automatically.
+        Intent mainIntent = new Intent(this, MainActivity.class)
+                .setAction(MainActivity.ACTION_REQUEST_SCREENSHOT)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(mainIntent);
     }
 }

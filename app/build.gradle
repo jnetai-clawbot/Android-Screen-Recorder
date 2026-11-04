@@ -13,10 +13,10 @@ android {
                     ?: file('../screenrecorder-keystore.jks').exists() ? '../screenrecorder-keystore.jks' : ''
             if (storePath && !storePath.isEmpty()) {
                 def ksFile = file(storePath)
-                if (ksFile.exists()) {
-                    def p = rootProject.findProperty('storePassword')
-                            ?: System.getenv('STORE_PASSWORD')
-                            ?: ''
+                def p = rootProject.findProperty('storePassword')
+                        ?: System.getenv('STORE_PASSWORD')
+                        ?: ''
+                if (ksFile.exists() && p != null && !p.toString().isEmpty()) {
                     storeFile ksFile
                     storePassword p
                     keyAlias rootProject.findProperty('keyAlias')
@@ -33,8 +33,8 @@ android {
         // minSdk 26 = Android 8.0 (Samsung S8 ships with this) — covers old + new devices
         minSdk 26
         targetSdk 34
-        versionCode 159
-        versionName '1.5.9'
+        versionCode 160
+        versionName '1.6.0'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
@@ -46,6 +46,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
+            // Sign debug builds with the same release keystore so every APK we
+            // publish installs as an update over the previous version.
+            signingConfig signingConfigs.release
             debuggable true
             minifyEnabled false
         }

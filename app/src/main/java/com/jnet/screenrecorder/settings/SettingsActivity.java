@@ -23,6 +23,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        com.jnet.screenrecorder.Prefs.migrate(this);
         com.jnet.screenrecorder.ThemeUtil.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
@@ -49,11 +50,29 @@ public class SettingsActivity extends AppCompatActivity {
             implements SharedPreferences.OnSharedPreferenceChangeListener {
 
         private static final int REQUEST_FOLDER_PICKER = 9001;
+        private static final int REQUEST_EXPORT_JSON = 9002;
+        private static final int REQUEST_IMPORT_JSON = 9003;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+            // All settings live in the single "screenrecorder" file used by the rest
+            // of the app (previously the Settings screen wrote to a different file).
+            com.jnet.screenrecorder.Prefs.migrate(getActivity());
+            getPreferenceManager().setSharedPreferencesName(com.jnet.screenrecorder.Prefs.NAME);
+            getPreferenceManager().setSharedPreferencesMode(android.content.Context.MODE_PRIVATE);
             addPreferencesFromResource(R.xml.preferences);
+
+            // Show the real version (from the manifest) in the About section.
+            try {
+                String v = getActivity().getPackageManager()
+                        .getPackageInfo(getActivity().getPackageName(), 0).versionName;
+                Preference versionPref = findPreference("version");
+                if (versionPref != null) {
+                    versionPref.setSummary(v);
+                }
+            } catch (Exception ignored) {
+            }
 
             findPreference("about").setOnPreferenceClickListener(pref -> {
                 Toast.makeText(getActivity(),
@@ -87,6 +106,16 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.makeText(getActivity(),
                         ok ? "Storage folders ready" : "Could not create folders — check storage permission",
                         Toast.LENGTH_LONG).show();
+                return true;
+            });
+
+            // --- Settings backup (JSON) ---
+            findPreference("export_settings").setOnPreferenceClickListener(pref -> {
+                exportSettings();
+                return true;
+            });
+            findPreference("import_settings").setOnPreferenceClickListener(pref -> {
+                importSettings();
                 return true;
             });
 
@@ -152,9 +181,100 @@ public class SettingsActivity extends AppCompatActivity {
             }
         }
 
+        /** Asks for a destination file, then writes all settings as JSON. */
+        private void exportSettings() {
+            try {
+                Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("application/json");
+                intent.putExtra(Intent.EXTRA_TITLE, "screenrecorder-settings.json");
+                startActivityForResult(intent, REQUEST_EXPORT_JSON);
+            } catch (Exception e) {
+                Toast.makeText(getActivity(), "File picker unavailable", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        /** Asks for a JSON backup file, then restores the settings from it. */
+        private void importSettings() {
+            try {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.putExtra(Intent.EXTRA_MIME_TYPES,
+                        new String[]{"application/json", "text/plain", "application/octet-stream"});
+                startActivityForResult(intent, REQUEST_IMPORT_JSON);
+            } catch (Exception e) {
+                Toast.makeText(getActivity(), "File picker unavailable", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        private void doExport(Uri uri) {
+            try (java.io.OutputStream out =
+                         getActivity().getContentResolver().openOutputStream(uri)) {
+                if (out == null) {
+                    throw new java.io.IOException("Could not open the selected file");
+                }
+                int count = com.jnet.screenrecorder.SettingsBackup.exportTo(getActivity(), out);
+                Toast.makeText(getActivity(), "Exported " + count + " settings",
+                        Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Settings export failed", e);
+                Toast.makeText(getActivity(), "Export failed: " + e.getMessage(),
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        private void doImport(Uri uri) {
+            try (java.io.InputStream in =
+                         getActivity().getContentResolver().openInputStream(uri)) {
+                if (in == null) {
+                    throw new java.io.IOException("Could not open the selected file");
+                }
+                SharedPreferences prefs = com.jnet.screenrecorder.Prefs.get(getActivity());
+                // Avoid firing live-change handlers once per key while restoring.
+                prefs.unregisterOnSharedPreferenceChangeListener(this);
+                int count;
+                try {
+                    count = com.jnet.screenrecorder.SettingsBackup.importFrom(getActivity(), in);
+                } finally {
+                    prefs.registerOnSharedPreferenceChangeListener(this);
+                }
+                applyImportedServiceState(prefs);
+                Toast.makeText(getActivity(), "Imported " + count + " settings",
+                        Toast.LENGTH_LONG).show();
+                getActivity().recreate();
+            } catch (Exception e) {
+                com.jnet.screenrecorder.ErrorLog.e("Settings import failed", e);
+                Toast.makeText(getActivity(), "Import failed: " + e.getMessage(),
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+
+        /** Applies bubble/notification toggles after a bulk import (listeners are muted). */
+        private void applyImportedServiceState(SharedPreferences prefs) {
+            boolean wantBubble = prefs.getBoolean("overlay_mode", false)
+                    || prefs.getBoolean("show_notification_bar", false)
+                    || prefs.getBoolean("graphene_mode", false);
+            if (wantBubble) {
+                startNotificationBarSafe(getActivity(), 0);
+            } else {
+                stopNotificationBar(getActivity());
+            }
+        }
+
         @Override
         public void onActivityResult(int requestCode, int resultCode, Intent data) {
             super.onActivityResult(requestCode, resultCode, data);
+            if (requestCode == REQUEST_EXPORT_JSON && resultCode == AppCompatActivity.RESULT_OK
+                    && data != null && data.getData() != null) {
+                doExport(data.getData());
+                return;
+            }
+            if (requestCode == REQUEST_IMPORT_JSON && resultCode == AppCompatActivity.RESULT_OK
+                    && data != null && data.getData() != null) {
+                doImport(data.getData());
+                return;
+            }
             if (requestCode == REQUEST_FOLDER_PICKER && resultCode == AppCompatActivity.RESULT_OK
                     && data != null && data.getData() != null) {
                 Uri uri = data.getData();

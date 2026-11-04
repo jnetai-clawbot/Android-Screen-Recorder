@@ -1,5 +1,7 @@
 # Android-Screen-Recorder
 
+**Repository:** https://github.com/jnetai-clawbot/Android-Screen-Recorder
+
 A reliable Android screen recorder that captures **video + audio** and **screenshots**, with a floating **quick-access bubble** overlay — similar to AZ Screen Recorder but designed to be more dependable.
 
 Built by [jnetai.com](https://jnetai.com).
@@ -7,9 +9,12 @@ Built by [jnetai.com](https://jnetai.com).
 ## Features
 
 - 🎥 **Record screen + audio** — MP4 (H.264 video + AAC audio)
+- ▶️ **Start / Stop toggle** on the main screen, under the title
+- ⏱ **Custom start delay** (default 0 seconds) so you can switch apps first
+- 📸 **Screenshot button with a custom delay** (default 3 seconds)
 - 🫧 **Floating quick-access bubble** — drag to move, tap to expand
 - 🎬 **Bubble buttons**: Record / Stop / Screenshot / Settings / Close
-- 📸 **Screenshot capture** — toggle show/hide in settings
+- 💾 **Import / Export settings** as a JSON backup file
 - 📁 **Dedicated storage** — defaults to `DCIM/ScreenRecorder/`
   - Recordings → `DCIM/ScreenRecorder/Recordings/`
   - Screenshots → `DCIM/ScreenRecorder/Screenshots/`

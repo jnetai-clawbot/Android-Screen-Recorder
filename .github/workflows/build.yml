@@ -11,17 +11,19 @@ on:
       version_name:
         description: 'Version name (e.g. 1.0.0)'
         required: false
-        default: '1.5.9'
+        default: '1.6.0'
       version_code:
         description: 'Version code (integer)'
         required: false
-        default: '159'
+        default: '160'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      KEYSTORE_PRESENT: ${{ secrets.KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout repo
@@ -47,6 +49,13 @@ jobs:
         run: |
           sed -i "s/versionCode [0-9]*/versionCode ${{ github.event.inputs.version_code }}/" app/build.gradle
           sed -i "s/versionName '[^']*'/versionName '${{ github.event.inputs.version_name }}'/" app/build.gradle
+
+      - name: Determine app version
+        id: ver
+        run: |
+          VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle | head -1)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION"
 
       - name: Grant Gradle permissions
         run: chmod +x gradlew
@@ -77,10 +86,27 @@ jobs:
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Screen-Recorder.apk
 
+      - name: Verify APK uses the stable release key
+        if: env.KEYSTORE_PRESENT == 'true'
+        run: |
+          APKSIGNER=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/Screen-Recorder.apk | tee /tmp/certs.txt
+          # Fingerprint of the long-lived keystore used by the public releases.
+          grep -q "0e242579099a0f98dbe24059188496f6966e3931f3fbfcf2cf0d1d58c3f29bdb" /tmp/certs.txt \
+            || { echo "ERROR: APK is not signed with the stable release keystore"; exit 1; }
+
+      - name: Require signing key for tagged releases
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          if [ "$KEYSTORE_PRESENT" != "true" ]; then
+            echo "ERROR: refusing to publish a tag without the release keystore secret"
+            exit 1
+          fi
+
       - name: Upload Screen-Recorder.apk
         uses: actions/upload-artifact@v4
         with:
-          name: Screen-Recorder-v${{ github.event.inputs.version_name || '1.0.0' }}
+          name: Screen-Recorder-v${{ steps.ver.outputs.version }}
           path: app/build/outputs/apk/debug/Screen-Recorder.apk
 
       - name: Create GitHub Release
@@ -92,22 +118,31 @@ jobs:
           files: |
             app/build/outputs/apk/debug/Screen-Recorder.apk
           body: |
-            ## J~Net Screen Recorder v${{ github.event.inputs.version_name || '1.0.0' }}
+            ## J~Net Screen Recorder v${{ steps.ver.outputs.version }}
 
             Record your screen with audio, and capture screenshots — with a floating quick-access bubble.
+
+            ### What's new in 1.6.0
+            - ▶️ **Start / Stop toggle on the main screen** (under the title)
+            - 📸 **Screenshot button with a custom delay** so you can switch to the app first
+            - ⏱ **Custom start-recording delay** (default 0 seconds)
+            - 💾 **Import / Export settings** as a JSON backup file
+            - 🫧 **Bubble overlay fix** — draws the real draggable bubble whenever "Display over other apps" is granted (Android 11+ no longer silently falls back to the system Bubbles API)
+            - 🔐 APKs are signed with the same long-lived keystore, so updates install over older versions
 
             ### ✅ Compatible with:
             - Samsung Galaxy S series, Note series, A series
             - Google Pixel 6, 7, 8, 9
-            - All Android 7.0+ (API 24+)
+            - All Android 8.0+ (API 26+)
 
             ### Features
             - 🎥 Record screen + audio (MP4, H.264 + AAC)
             - 🫧 Floating quick-access bubble (drag to move, tap to expand)
             - 🎬 Record / Stop / Screenshot / Settings buttons in the bubble
-            - 📸 Screenshot capture (toggle on/off in settings)
+            - ⏱ Start delay + screenshot delay
             - 📁 Saves to DCIM/ScreenRecorder/Recordings & Screenshots
-            - ⚙️ Settings: save location, resolution, FPS, record-audio toggle
+            - ⚙️ Settings: save location, resolution, FPS, audio, bubble style
+            - 💾 JSON import / export for all settings
             - ℹ️ About: made by jnetai.com, check for update, share app
 
             [🔗 jnetai.com](https://jnetai.com)
